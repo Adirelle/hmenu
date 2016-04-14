@@ -6,7 +6,7 @@ import           Application.FreeDesktop.Parser
 import           Application.Types
 import           Control.Monad
 import           Data.Maybe
-import           Data.Text                      (Text)
+import           Data.Text                      (Text, isPrefixOf)
 import qualified Data.Text.IO                   as DTI
 import           Data.Time
 import           System.Directory
@@ -22,23 +22,31 @@ scanEntries :: [FilePath] -> IO [Entry]
 scanEntries dirs = do
     files <- concat <$> mapM listFiles dirs
     let desktopFiles = filter isDesktopFile files
-    catMaybes <$> mapM readEntry desktopFiles
+    concat <$> mapM readEntry desktopFiles
+    where
+        isDesktopFile = (".desktop" ==) . takeExtension
 
 listFiles :: FilePath -> IO [FilePath]
 listFiles dir =
     listDirectory dir >>=
     filterM doesFileExist . map (dir </>)
 
-isDesktopFile :: FilePath -> Bool
-isDesktopFile = (".desktop" ==) . takeExtension
+readEntry :: FilePath -> IO [Entry]
+readEntry path = fmap parseEntry (DTI.readFile path)
 
-readEntry :: FilePath -> IO (Maybe Entry)
-readEntry path = parseEntry <$> DTI.readFile path
+parseEntry :: Text -> [Entry]
+parseEntry content =
+    case parseDesktopEntry content of
+        Just groups -> mapMaybe parseGroup groups
+        Nothing     -> []
+    where
+        parseGroup (key, values) | isActionKey key = parseAction values
+                                 | otherwise       = Nothing
+        isActionKey k = "Desktop Entry" == k
+                        || "Desktop Action " `isPrefixOf` k
 
-parseEntry :: Text -> Maybe Entry
-parseEntry content = do
-    desktopEntry <- parseDesktopEntry content
-    group        <- lookupGroup "Desktop Entry" desktopEntry
+parseAction :: Group -> Maybe Entry
+parseAction group = do
     command      <- lookupText "Exec" group
     title        <- lookupText "Name" group
     let comment   = lookupText "Comment" group

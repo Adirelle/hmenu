@@ -2,6 +2,8 @@
 
 module Application.FreeDesktop.Parser (
     parseDesktopEntry,
+    DesktopEntry,
+    Group,
     lookupGroup,
     lookupText,
     lookupBool,
