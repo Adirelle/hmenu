@@ -1,10 +1,14 @@
-module Application.Types where
+{-# LANGUAGE OverloadedStrings #-}
 
-import           Data.Text (Text)
+module Application.Types (
+    Entry(..)
+) where
+
+import           Data.Text (Text, unpack)
 
 data Entry = Entry {
     command :: Text,
     title   :: Text,
     comment :: Maybe Text,
     icon    :: Maybe Text
-} deriving (Show, Eq)
+} deriving (Show, Eq, Ord)
