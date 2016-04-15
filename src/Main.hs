@@ -2,18 +2,22 @@
 
 module Main where
 
-import           HMenu.FreeDesktop
-import           HMenu.Search
-import           HMenu.Types
 import           Control.Monad
 import           Data.Maybe
-import qualified Data.Text               as T
+import qualified Data.Text          as T
+import           HMenu.FreeDesktop
+import           HMenu.Path
+import           HMenu.Search
+import           HMenu.Types
 import           System.Environment
 import           Text.Printf
 
 main :: IO ()
 main = do
-    index <- createIndex <$> listDesktopEntries
+    desktopEntries <- listDesktopEntries
+    pathEntries <- listPathEntries
+    let entries = desktopEntries ++ pathEntries
+        index = createIndex entries
     args <- map T.pack <$> getArgs
     let terms = T.intercalate " " args
         results = search terms index

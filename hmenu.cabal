@@ -19,6 +19,7 @@ executable hmenu
                        HMenu.FreeDesktop.Parser,
                        HMenu.FreeDesktop.Types,
                        HMenu.Types,
+                       HMenu.Path,
                        HMenu.Search,
                        Data.Locale
   default-language:    Haskell2010
