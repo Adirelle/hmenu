@@ -15,6 +15,12 @@ cabal-version:       >=1.10
 executable hmenu
   hs-source-dirs:      src
   main-is:             Main.hs
+  other-modules:       Application.FreeDesktop,
+                       Application.FreeDesktop.Parser,
+                       Application.FreeDesktop.Types,
+                       Application.Types,
+                       Application.Search,
+                       Data.Locale
   default-language:    Haskell2010
   build-depends:       base       >= 4.7   && < 5,
                        text       >= 1.2   && < 2,
