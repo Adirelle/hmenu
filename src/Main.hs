@@ -2,9 +2,9 @@
 
 module Main where
 
-import           Application.FreeDesktop
-import           Application.Search
-import           Application.Types
+import           HMenu.FreeDesktop
+import           HMenu.Search
+import           HMenu.Types
 import           Control.Monad
 import           Data.Maybe
 import qualified Data.Text               as T

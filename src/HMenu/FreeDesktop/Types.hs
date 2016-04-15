@@ -1,4 +1,4 @@
-module Application.FreeDesktop.Types where
+module HMenu.FreeDesktop.Types where
 
 import qualified Data.Char   as DC
 import           Data.List

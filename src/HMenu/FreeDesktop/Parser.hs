@@ -1,8 +1,8 @@
-module Application.FreeDesktop.Parser (
+module HMenu.FreeDesktop.Parser (
     parseDesktopEntry
 ) where
 
-import           Application.FreeDesktop.Types
+import           HMenu.FreeDesktop.Types
 import           Data.Attoparsec.Text
 import           Data.Locale
 import           Data.Text                     (Text)

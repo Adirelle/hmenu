@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Application.Search (
+module HMenu.Search (
     createIndex,
     search,
     Index,
     Weight
 ) where
 
-import           Application.Types
+import           HMenu.Types
 import           Data.List
 import qualified Data.Map          as M
 import           Data.Maybe

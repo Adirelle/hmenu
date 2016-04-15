@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Application.Types (
+module HMenu.Types (
     Entry(..)
 ) where
 

@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Application.FreeDesktop (
+module HMenu.FreeDesktop (
     listDesktopEntries
 ) where
 
-import           Application.FreeDesktop.Parser
-import           Application.FreeDesktop.Types
-import           Application.Types
+import           HMenu.FreeDesktop.Parser
+import           HMenu.FreeDesktop.Types
+import           HMenu.Types
 import           Control.Monad
 import           Data.Locale
 import           Data.Maybe
