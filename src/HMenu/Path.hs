@@ -27,8 +27,8 @@ listExecutables path =
             perms <- getPermissions filepath
             return $ exists && executable perms
         wrapBinary name = Entry {
-                            command = pack (path </> name),
+                            command = pack $ path </> name,
                             title = pack name,
-                            comment = Nothing,
+                            comment = Just $ pack $ path </> name,
                             icon = Nothing
                           }
