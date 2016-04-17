@@ -1,42 +1,32 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module HMenu.FreeDesktop --(
-    --listDesktopEntries
---)
-where
+module HMenu.FreeDesktop (
+    listDesktopEntries
+) where
 
-import           Control.Monad
-import           Data.Locale
-import           Data.Maybe
+import           Control.Applicative      ((<|>))
+import           Control.Monad            ((>=>))
+import           Data.Locale              (Locale, locale)
+import           Data.Maybe               (fromMaybe, mapMaybe)
 import qualified Data.Text                as T
 import qualified Data.Text.IO             as DTI
-import           HMenu.FreeDesktop.Parser
-import           HMenu.FreeDesktop.Types
-import           HMenu.Types
-import           System.Directory
-import           System.Environment
-import           System.FilePath
+import           HMenu.FreeDesktop.Parser (parseDesktopEntry)
+import           HMenu.FreeDesktop.Types  (DesktopEntry, Group, lookupValue)
+import           HMenu.ScanDirs           (scanDirs)
+import           HMenu.Types              (Entry (..))
+import           System.Directory         (XdgDirectory (..), getXdgDirectory)
+import           System.Environment       (lookupEnv)
+import           System.FilePath          (takeExtension)
 
 listDesktopEntries :: IO [Entry]
 listDesktopEntries = do
     userApps <- getXdgDirectory XdgData "applications"
-    paths <- filterM doesDirectoryExist ["/usr/share/applications", userApps]
-    lang <- lookupEnv "LANG"
-    let l = locale $ fromMaybe "C" lang
-    scanEntries paths l
-
-scanEntries :: [FilePath] -> Locale -> IO [Entry]
-scanEntries dirs locale = do
-    files <- concat <$> mapM listFiles dirs
-    let desktopFiles = filter isDesktopFile files
-    concat <$> mapM (readEntry locale) desktopFiles
+    lang <- lookupEnv "LC_MESSAGES" <|> lookupEnv "LC_ALL" <|> lookupEnv "LANG"
+    let paths = ["/usr/share/applications", userApps]
+        l = locale $ fromMaybe "C" lang
+    scanDirs isDesktopFile (readEntry l) paths
     where
-        isDesktopFile = (".desktop" ==) . takeExtension
-
-listFiles :: FilePath -> IO [FilePath]
-listFiles dir =
-    listDirectory dir >>=
-    filterM doesFileExist . map (dir </>)
+        isDesktopFile = return . (".desktop" ==) . takeExtension
 
 readEntry :: Locale -> FilePath -> IO [Entry]
 readEntry locale path = do
@@ -57,8 +47,8 @@ parseEntry locale desktopEntry =
         parseActions (main, names) =
             let enhance e = e {
                     title   = T.concat [title main, ": ", title e],
-                    icon    = icon e `mplus` icon main,
-                    comment = comment e `mplus` comment main
+                    icon    = icon e <|>icon main,
+                    comment = comment e <|> comment main
                 }
                 actions = mapMaybe (lookupGroup >=> groupToAction) names
             in main : map enhance actions
