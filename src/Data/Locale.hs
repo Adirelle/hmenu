@@ -1,10 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.Locale (
-    Locale,
+    Locale(..),
     locale,
-    localeParser,
-    dist
+    localeParser
 ) where
 
 import           Data.Attoparsec.Text
@@ -34,14 +33,3 @@ optional p = option Nothing (fmap Just p)
 
 identifier :: Parser Text
 identifier = takeWhile1 (inClass "a-zA-Z0-9-") <?> "identifier"
-
-dist :: Locale -> Locale -> Int
-dist (Locale al ac ae am) (Locale bl bc be bm) =
-    if al == bl then
-        if ac == bc then
-            if ae == be then
-                if am == bm then 4
-                else 3
-            else 2
-        else 1
-    else 0

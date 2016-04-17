@@ -1,11 +1,12 @@
 module HMenu.FreeDesktop.Types where
 
-import qualified Data.Char   as DC
+import           Control.Applicative
+import qualified Data.Char           as DC
 import           Data.List
-import qualified Data.Locale as L
+import qualified Data.Locale         as L
 import           Data.Maybe
 import           Data.Ord
-import           Data.Text   (Text)
+import           Data.Text           (Text)
 
 type DesktopEntry = [(Text, Group)]
 
@@ -18,13 +19,13 @@ lookupGroup :: Text -> DesktopEntry -> Maybe Group
 lookupGroup = lookup
 
 lookupValue :: Text -> Maybe L.Locale -> Group -> Maybe Text
-lookupValue key Nothing values = lookup (Key key Nothing) values
-lookupValue key (Just locale) values =
-    snd $ foldr keepBest (-1, Nothing) values
+lookupValue k Nothing g = lookup (Key k Nothing) g
+lookupValue k (Just (L.Locale l c _ m)) g =
+    doLookup l c       m       <|>
+    doLookup l Nothing m       <|>
+    doLookup l c       Nothing <|>
+    doLookup l Nothing Nothing <|>
+    lookupValue k Nothing g
     where
-        keepBest (Key k _       , _) a            | k /= key   = a
-        keepBest (Key _ Nothing , v) (_, Nothing)              = (0, Just v)
-        keepBest (Key _ Nothing , _) a                         = a
-        keepBest (Key _ (Just l), _) a@(d, _)     | dist l < d = a
-        keepBest (Key _ (Just l), v) _                         = (dist l, Just v)
-        dist = L.dist locale
+        doLookup l c m = let locale = L.Locale l c Nothing m
+                         in lookup (Key k (Just locale)) g
