@@ -5,3 +5,4 @@ packages:
 extra-deps:
 - directory-1.2.5.1
 resolver: lts-5.12
+system-ghc: false

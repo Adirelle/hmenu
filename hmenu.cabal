@@ -30,4 +30,5 @@ executable hmenu
                        bytestring >= 0.10  && < 0.11,
                        attoparsec >= 0.13  && < 0.14,
                        directory  >= 1.2.3 && < 2,
-                       filepath   >= 1.4   && < 2
+                       filepath   >= 1.4   && < 2,
+                       mtl        >= 2.2.1 && < 3

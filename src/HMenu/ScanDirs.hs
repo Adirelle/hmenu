@@ -4,10 +4,9 @@ module HMenu.ScanDirs (
     scanDirs
 ) where
 
-import           Control.Monad    (filterM, mapM, liftM2)
+import           Control.Monad    (filterM, liftM2, mapM)
 import           HMenu.Types      (Entry)
-import           System.Directory (doesDirectoryExist, doesFileExist,
-                                   listDirectory)
+import           System.Directory (doesDirectoryExist, doesFileExist, listDirectory)
 import           System.FilePath  ((</>))
 
 scanDirs :: (FilePath -> IO Bool) -> (FilePath -> IO [Entry]) -> [FilePath] -> IO [Entry]

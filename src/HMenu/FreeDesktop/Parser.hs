@@ -2,10 +2,10 @@ module HMenu.FreeDesktop.Parser (
     parseDesktopEntry
 ) where
 
-import           HMenu.FreeDesktop.Types
 import           Data.Attoparsec.Text
 import           Data.Locale
-import           Data.Text                     (Text)
+import           Data.Text               (Text)
+import           HMenu.FreeDesktop.Types
 
 parseDesktopEntry :: Text -> Maybe DesktopEntry
 parseDesktopEntry content =

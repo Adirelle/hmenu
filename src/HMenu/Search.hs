@@ -4,69 +4,65 @@ module HMenu.Search (
     createIndex,
     search,
     Index,
-    Weight
+    Weight,
+    nGrams
 ) where
 
-import           HMenu.Types
+import           Control.Monad.State
 import           Data.List
-import qualified Data.Map          as M
+import qualified Data.Map            as M
 import           Data.Maybe
-import           Data.Ord          (Down (..))
-import           Data.Text         (Text)
-import qualified Data.Text         as T
+import           Data.Ord            (Down (..))
+import qualified Data.Text           as T
+import           HMenu.Types
 
-type Token = Text
+type Token = T.Text
 type Weight = Double
 type WeightMap k = M.Map k Weight
 type Index = M.Map Token (WeightMap Entry)
 
-createIndex :: [Entry] -> Index
-createIndex entries =
-    let singletons    = [ M.singleton t (M.singleton e w) | e <- entries, (t, w) <- M.toList $ entryTokens e ]
-        rawIndex      = M.unionsWith (M.unionWith (+)) singletons
-        numEntries    = length entries
-        filteredIndex = M.filter ((< numEntries) . M.size) rawIndex
-        fixWeights m  = let f = fromIntegral (numEntries - M.size m) / fromIntegral numEntries
-                        in alterWeights f m
-    in M.map fixWeights filteredIndex
+type Indexer = State Index ()
 
-search :: Text -> Index -> [(Entry, Weight)]
+search :: T.Text -> Index -> [(Entry, Weight)]
 search terms index =
-    let tokens            = tokenizeQuery 1.0 terms
-        allMatches        = mapMaybe lookupToken tokens
-        lookupToken (w,t) = do
-            entries <- M.lookup t index
-            return $ alterWeights w entries
+    let tokens            = tokenize terms
+        allMatches        = mapMaybe (`M.lookup` index) tokens
         results           = M.unionsWith (+) allMatches
     in sortOn (Down . snd) $ M.toList results
 
-alterWeights :: Double -> WeightMap k -> WeightMap k
-alterWeights f = M.map (f *)
+createIndex :: [Entry] -> Index
+createIndex entries =
+    let index = execState (mapM_ indexEntry entries) M.empty
+    in M.map weightenTokens index
+    where
+        weightenTokens :: WeightMap Entry -> WeightMap Entry
+        weightenTokens m =
+            M.map (factor *) m
+            where factor = 1.0 / fromIntegral (length m)
 
-entryTokens :: Entry -> WeightMap Token
-entryTokens e =
-    let tokens = tokenizeField 1.0 (title e)
-                 ++ maybe [] (tokenizeField 0.8) (comment e)
-                 ++ tokenizeField 0.6 (command e)
-        count = fromIntegral $ length tokens
-    in M.unionsWith (+) [ M.singleton t (w / count) | (w, t) <- tokens ]
+indexEntry :: Entry -> Indexer
+indexEntry e = do
+    indexField 1.0 $ title e
+    forM_ (comment e) (indexField 0.8)
+    indexField 0.6 $ command e
+    where
+        indexField :: Weight -> T.Text -> Indexer
+        indexField w t = do
+            let ts = tokenize t
+                d =  fromIntegral $ length ts
+            forM_ ts $ indexToken (w / d)
+        indexToken :: Weight -> T.Text -> Indexer
+        indexToken t w = modify' $ addToken e t w
 
-tokenizeField :: Weight -> Text -> [(Weight, Token)]
-tokenizeField w t = tokens w t >>= foldCase >>= edgeNGrams 3 8
+addToken :: Entry -> Weight -> Token -> Index -> Index
+addToken e w = M.alter (alterEntry w)
+    where
+        alterEntry :: Weight -> Maybe (WeightMap Entry) -> Maybe (WeightMap Entry)
+        alterEntry w Nothing  = Just $ M.singleton e w
+        alterEntry w (Just m) = Just $ M.insertWith' (+) e w m
 
-tokenizeQuery :: Weight -> Text -> [(Weight, Token)]
-tokenizeQuery w t = tokens w t >>= foldCase
+tokenize :: T.Text -> [T.Text]
+tokenize t = concatMap (nGrams 3 8) (T.words $ T.toCaseFold t)
 
-tokens :: Weight -> Text -> [(Weight, Token)]
-tokens w = map (\t -> (w, t)) . T.words
-
-foldCase :: (Weight, Token) -> [(Weight, Token)]
-foldCase token@(w, t) = [token, (w * 0.9, T.toCaseFold t)]
-
-edgeNGrams :: Int -> Int -> (Weight, Token) -> [(Weight, Token)]
-edgeNGrams a b token@(w, t) = token : ngrams
-    where l = T.length t
-          ngrams | l <= a    = []
-                 | l <= b    = [ take n | n <- [a..l] ]
-                 | otherwise = [ take n | n <- [a..b] ]
-          take n = (w * fromIntegral n / fromIntegral l, T.take n t)
+nGrams :: Int -> Int -> T.Text -> [T.Text]
+nGrams a b t = t : drop a (take (b+1) $ T.inits t)
