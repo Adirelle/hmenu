@@ -20,6 +20,6 @@ main = do
         index = createIndex entries
     args <- map T.pack <$> getArgs
     let terms = T.intercalate " " args
-        results = search terms index
+        results = take 10 $ search terms index
     forM_ results $ \(e, w) ->
         printf "%s - %s - %.03f \n" (title e) (fromMaybe "" (comment e)) (100.0 * w)
