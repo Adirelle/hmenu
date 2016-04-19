@@ -10,7 +10,7 @@ module HMenu.Search (
 
 import           Control.Monad.State
 import           Data.List
-import qualified Data.Map            as M
+import qualified Data.Map.Strict     as M
 import           Data.Maybe
 import           Data.Ord            (Down (..))
 import qualified Data.Text           as T
@@ -25,20 +25,21 @@ type Indexer = State Index ()
 
 search :: T.Text -> Index -> [(Entry, Weight)]
 search terms index =
-    let tokens            = tokenize terms
-        allMatches        = mapMaybe (`M.lookup` index) tokens
-        results           = M.unionsWith (+) allMatches
-    in sortOn (Down . snd) $ M.toList results
+    let tokens  = tokenize terms
+        matches = mapMaybe (`M.lookup` index) tokens
+        pairs = M.unionsWith (+) matches
+    in sortOn (Down . snd) $ M.toList pairs
 
 createIndex :: [Entry] -> Index
 createIndex entries =
     let index = execState (mapM_ indexEntry entries) M.empty
-    in M.map weightenTokens index
+    in M.mapMaybe applyWeight index
     where
-        weightenTokens :: WeightMap Entry -> WeightMap Entry
-        weightenTokens m =
-            M.map (factor *) m
-            where factor = 1.0 / fromIntegral (length m)
+        count = fromIntegral $ length entries
+        applyWeight :: WeightMap Entry -> Maybe (WeightMap Entry)
+        applyWeight m =
+            let x = (count - fromIntegral (length m)) / count
+            in if x < 0.1 then Nothing else Just $ M.map (x *) m
 
 indexEntry :: Entry -> Indexer
 indexEntry e = do
@@ -59,7 +60,7 @@ addToken e w = M.alter (alterEntry w)
     where
         alterEntry :: Weight -> Maybe (WeightMap Entry) -> Maybe (WeightMap Entry)
         alterEntry w Nothing  = Just $ M.singleton e w
-        alterEntry w (Just m) = Just $ M.insertWith' (+) e w m
+        alterEntry w (Just m) = Just $ M.insertWith (+) e w m
 
 tokenize :: T.Text -> [T.Text]
 tokenize t = concatMap (nGrams 3 8) (T.words $ T.toCaseFold t)
