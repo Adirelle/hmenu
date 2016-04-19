@@ -5,10 +5,10 @@ module Main where
 import           Control.Monad
 import           Data.Maybe
 import qualified Data.Text          as T
-import           HMenu.FreeDesktop
 import           HMenu.Path
 import           HMenu.Search
 import           HMenu.Types
+import           HMenu.Xdg
 import           System.Environment
 import           Text.Printf
 

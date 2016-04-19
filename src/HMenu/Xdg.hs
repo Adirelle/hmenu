@@ -1,32 +1,36 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module HMenu.FreeDesktop (
+module HMenu.Xdg (
     listDesktopEntries
 ) where
 
-import           Control.Applicative      ((<|>))
-import           Control.Monad            ((>=>))
-import           Data.Locale              (Locale, locale)
-import           Data.Maybe               (fromMaybe, mapMaybe)
-import qualified Data.Text                as T
-import qualified Data.Text.IO             as DTI
-import           HMenu.FreeDesktop.Parser (parseDesktopEntry)
-import           HMenu.FreeDesktop.Types  (DesktopEntry, Group, lookupValue)
-import           HMenu.ScanDirs           (scanDirs)
-import           HMenu.Types              (Entry (..))
-import           System.Directory         (XdgDirectory (..), getXdgDirectory)
-import           System.Environment       (lookupEnv)
-import           System.FilePath          (takeExtension)
+import           Control.Applicative ((<|>))
+import           Control.Monad       ((>=>))
+import           Data.Locale         (Locale, locale)
+import           Data.Maybe          (fromJust, fromMaybe, mapMaybe)
+import qualified Data.Text           as T
+import qualified Data.Text.IO        as DTI
+import           HMenu.ScanDirs      (scanDirs)
+import           HMenu.Types         (Entry (..))
+import           System.Environment  (lookupEnv)
+import           System.FilePath     (takeExtension)
+import           Xdg.Directories
+import           Xdg.Parser          (parseDesktopEntry)
+import           Xdg.Types           (DesktopEntry, Group, lookupValue)
 
 listDesktopEntries :: IO [Entry]
 listDesktopEntries = do
-    userApps <- getXdgDirectory XdgData "applications"
-    lang <- lookupEnv "LC_MESSAGES" <|> lookupEnv "LC_ALL" <|> lookupEnv "LANG"
-    let paths = ["/usr/share/applications", userApps]
-        l = locale $ fromMaybe "C" lang
-    scanDirs isDesktopFile (readEntry l) paths
+    directories <- findDirectories DataDirs "applications"
+    lang <- resolveLocale
+    let l = locale $ fromJust lang
+    scanDirs isDesktopFile (readEntry l) directories
     where
         isDesktopFile = return . (".desktop" ==) . takeExtension
+        resolveLocale = do
+            a <- lookupEnv "LC_MESSAGES"
+            b <- lookupEnv "LC_ALL"
+            c <- lookupEnv "LANG"
+            return $ a <|> b <|> c <|> Just "C"
 
 readEntry :: Locale -> FilePath -> IO [Entry]
 readEntry locale path = do

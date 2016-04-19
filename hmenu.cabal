@@ -15,12 +15,12 @@ cabal-version:       >=1.10
 executable hmenu
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       HMenu.FreeDesktop,
-                       HMenu.FreeDesktop.Parser,
-                       HMenu.FreeDesktop.Types,
+  other-modules:       HMenu.Xdg,
                        HMenu.Types,
                        HMenu.Path,
                        HMenu.Search,
+                       Xdg.Parser,
+                       Xdg.Types,
                        Data.Locale
   default-language:    Haskell2010
   build-depends:       base       >= 4.7   && < 5,
@@ -29,6 +29,7 @@ executable hmenu
                        containers >= 0.5   && < 0.6,
                        bytestring >= 0.10  && < 0.11,
                        attoparsec >= 0.13  && < 0.14,
-                       directory  >= 1.2.3 && < 2,
+                       directory  >= 1.2   && < 2,
                        filepath   >= 1.4   && < 2,
-                       mtl        >= 2.2.1 && < 3
+                       mtl        >= 2.2.1 && < 3,
+                       split      >= 0.2.3 && < 0.3
