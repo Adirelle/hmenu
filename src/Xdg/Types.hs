@@ -1,19 +1,26 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Xdg.Types where
 
 import           Control.Applicative
+import           Control.DeepSeq
 import qualified Data.Char           as DC
 import           Data.List
-import qualified Data.Locale         as L
 import           Data.Maybe
 import           Data.Ord
 import           Data.Text           (Text)
+import           GHC.Generics        (Generic)
+
+import qualified Data.Locale         as L
 
 type DesktopEntry = [(Text, Group)]
 
 type Group = [(Key, Text)]
 
 data Key = Key Text (Maybe L.Locale)
-    deriving (Ord, Eq, Show)
+    deriving (Ord, Eq, Show, Generic)
+
+instance NFData Key
 
 lookupGroup :: Text -> DesktopEntry -> Maybe Group
 lookupGroup = lookup

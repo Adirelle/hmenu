@@ -4,7 +4,8 @@ module Xdg.Parser (
 
 import           Data.Attoparsec.Text
 import           Data.Locale
-import           Data.Text               (Text)
+import           Data.Text            (Text)
+
 import           Xdg.Types
 
 parseDesktopEntry :: Text -> Maybe DesktopEntry

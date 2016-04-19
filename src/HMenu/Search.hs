@@ -14,6 +14,7 @@ import qualified Data.Map.Strict     as M
 import           Data.Maybe
 import           Data.Ord            (Down (..))
 import qualified Data.Text           as T
+
 import           HMenu.Types
 
 type Token = T.Text
@@ -23,12 +24,12 @@ type Index = M.Map Token (WeightMap Entry)
 
 type Indexer = State Index ()
 
-search :: T.Text -> Index -> [(Entry, Weight)]
-search terms index =
+search :: Index -> T.Text -> [Entry]
+search index terms =
     let tokens  = tokenize terms
         matches = mapMaybe (`M.lookup` index) tokens
         pairs = M.unionsWith (+) matches
-    in sortOn (Down . snd) $ M.toList pairs
+    in map fst $ sortOn (Down . snd) $ M.toList pairs
 
 createIndex :: [Entry] -> Index
 createIndex entries =

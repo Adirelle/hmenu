@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.Locale (
@@ -6,12 +7,16 @@ module Data.Locale (
     localeParser
 ) where
 
+import           Control.DeepSeq
 import           Data.Attoparsec.Text
 import           Data.String
 import           Data.Text            (Text, pack, unpack)
+import           GHC.Generics         (Generic)
 
 data Locale = Locale Text (Maybe Text) (Maybe Text) (Maybe Text)
-              deriving (Ord, Eq, Show)
+              deriving (Ord, Eq, Show, Generic)
+
+instance NFData Locale
 
 locale :: String -> Locale
 locale input =

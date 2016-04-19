@@ -7,9 +7,10 @@ module HMenu.ScanDirs (
 import           Control.Monad
 import           Control.Monad.State
 import qualified Data.Map.Strict     as M
-import           HMenu.Types
 import           System.Directory
 import           System.FilePath
+
+import           HMenu.Types
 
 scanDirs :: (FilePath -> IO Bool) -> (FilePath -> IO [Entry]) -> [FilePath] -> IO [Entry]
 scanDirs fileFilter converter dirs = do
