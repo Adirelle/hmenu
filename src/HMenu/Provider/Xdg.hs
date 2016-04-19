@@ -1,19 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module HMenu.Xdg (
+module HMenu.Provider.Xdg (
     listDesktopEntries
 ) where
 
 import           Control.Applicative ((<|>))
 import           Control.Monad       ((>=>))
-import           Data.Locale         (Locale, locale)
 import           Data.Maybe          (fromJust, fromMaybe, mapMaybe)
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as DTI
-import           HMenu.ScanDirs      (scanDirs)
-import           HMenu.Types         (Entry (..))
 import           System.Environment  (lookupEnv)
 import           System.FilePath     (takeExtension)
+
+import           Data.Locale         (Locale, locale)
+import           HMenu.ScanDirs      (scanDirs)
+import           HMenu.Types         (Entry (..))
 import           Xdg.Directories
 import           Xdg.Parser          (parseDesktopEntry)
 import           Xdg.Types           (DesktopEntry, Group, lookupValue)

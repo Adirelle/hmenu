@@ -1,15 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module HMenu.Path (
+module HMenu.Provider.Path (
     listPathEntries
 ) where
 
 import           Control.Monad
 import           Data.Text        (pack)
-import           HMenu.ScanDirs
-import           HMenu.Types
 import           System.Directory
 import           System.FilePath
+
+import           HMenu.ScanDirs
+import           HMenu.Types
 
 listPathEntries :: IO [Entry]
 listPathEntries =
