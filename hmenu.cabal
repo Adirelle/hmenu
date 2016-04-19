@@ -15,13 +15,15 @@ cabal-version:       >=1.10
 executable hmenu
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       HMenu.Xdg,
-                       HMenu.Types,
-                       HMenu.Path,
+  other-modules:       Data.Locale,
+                       HMenu.Provider.Path,
+                       HMenu.Provider.Xdg,
+                       HMenu.ScanDirs,
                        HMenu.Search,
+                       HMenu.Types,
+                       Xdg.Directories,
                        Xdg.Parser,
-                       Xdg.Types,
-                       Data.Locale
+                       Xdg.Types
   default-language:    Haskell2010
   build-depends:       base       >= 4.7   && < 5,
                        text       >= 1.2   && < 2,

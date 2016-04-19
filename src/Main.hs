@@ -8,34 +8,32 @@ import           Control.DeepSeq
 import           Control.Monad
 import           Data.Maybe
 import qualified Data.Text               as T
+import qualified Graphics.UI.Gtk         as G
 import           System.Environment
 import           Text.Printf
 
 import           HMenu.Provider.Path
+import           HMenu.Provider.Xdg
 import           HMenu.Search
 import           HMenu.Types
-import           HMenu.Provider.Xdg
-
-type Backend = (T.Text -> [Entry])
 
 main :: IO ()
 main = inBackground startBackend >>= startGUI
 
-startBackend :: IO Backend
+startBackend :: IO Index
 startBackend = do
     putStrLn "Starting backend"
     entries <- inParallel [listDesktopEntries, listPathEntries]
-    let index = createIndex $ concat entries
-    return $ take 10 . search index
+    return $ createIndex $ concat entries
 
-startGUI :: MVar Backend -> IO ()
-startGUI backendMVar = do
+startGUI :: MVar Index -> IO ()
+startGUI mVar = do
     putStrLn "Starting UI"
     args <- map T.pack <$> getArgs
     let terms = T.intercalate " " args
     putStrLn "Waiting for backend"
-    search <- takeMVar backendMVar
-    let results = search terms
+    index <- takeMVar mVar
+    let results = search index terms
     putStrLn "Got results"
     forM_ results $ \e ->
         printf "%s - %s - %s\n" (title e) (fromMaybe "" (comment e)) (command e)

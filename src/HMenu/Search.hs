@@ -1,46 +1,52 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module HMenu.Search (
     createIndex,
     search,
-    Index,
-    Weight,
-    nGrams
+    Index
 ) where
 
+import           Control.DeepSeq
 import           Control.Monad.State
 import           Data.List
 import qualified Data.Map.Strict     as M
 import           Data.Maybe
 import           Data.Ord            (Down (..))
 import qualified Data.Text           as T
+import           GHC.Generics        (Generic)
 
 import           HMenu.Types
 
+type Map = M.Map
 type Token = T.Text
 type Weight = Double
-type WeightMap k = M.Map k Weight
-type Index = M.Map Token (WeightMap Entry)
+type WeightMap k = Map k Weight
+
+newtype Index = Index (Map Token (WeightMap Entry))
+                deriving (Eq, Show, Generic)
+
+instance NFData Index
 
 type Indexer = State Index ()
 
-search :: Index -> T.Text -> [Entry]
-search index terms =
-    let tokens  = tokenize terms
-        matches = mapMaybe (`M.lookup` index) tokens
-        pairs = M.unionsWith (+) matches
-    in map fst $ sortOn (Down . snd) $ M.toList pairs
-
 createIndex :: [Entry] -> Index
 createIndex entries =
-    let index = execState (mapM_ indexEntry entries) M.empty
-    in M.mapMaybe applyWeight index
+    let (Index rawIndex) = execState (mapM_ indexEntry entries) (Index M.empty)
+    in Index $ M.mapMaybe applyWeight rawIndex
     where
         count = fromIntegral $ length entries
         applyWeight :: WeightMap Entry -> Maybe (WeightMap Entry)
         applyWeight m =
             let x = (count - fromIntegral (length m)) / count
             in if x < 0.1 then Nothing else Just $ M.map (x *) m
+
+search :: Index -> T.Text -> [Entry]
+search (Index index) terms =
+    let tokens  = tokenize terms
+        matches = mapMaybe (`M.lookup` index) tokens
+        pairs = M.unionsWith (+) matches
+    in map fst $ sortOn (Down . snd) $ M.toList pairs
 
 indexEntry :: Entry -> Indexer
 indexEntry e = do
@@ -57,7 +63,7 @@ indexEntry e = do
         indexToken t w = modify' $ addToken e t w
 
 addToken :: Entry -> Weight -> Token -> Index -> Index
-addToken e w = M.alter (alterEntry w)
+addToken e w t (Index i) = Index $ M.alter (alterEntry w) t i
     where
         alterEntry :: Weight -> Maybe (WeightMap Entry) -> Maybe (WeightMap Entry)
         alterEntry w Nothing  = Just $ M.singleton e w
