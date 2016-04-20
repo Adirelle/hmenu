@@ -10,8 +10,10 @@ import           Data.Maybe
 import qualified Data.Text               as T
 import qualified Graphics.UI.Gtk         as G
 import           System.Environment
+import           System.Posix.Signals
 import           Text.Printf
 
+import           HMenu.GUI
 import           HMenu.Provider.Path
 import           HMenu.Provider.Xdg
 import           HMenu.Search
@@ -28,15 +30,20 @@ startBackend = do
 
 startGUI :: MVar Index -> IO ()
 startGUI mVar = do
-    putStrLn "Starting UI"
-    args <- map T.pack <$> getArgs
-    let terms = T.intercalate " " args
-    putStrLn "Waiting for backend"
-    index <- takeMVar mVar
-    let results = search index terms
-    putStrLn "Got results"
-    forM_ results $ \e ->
-        printf "%s - %s - %s\n" (title e) (fromMaybe "" (comment e)) (command e)
+    G.initGUI
+    -- Needed to run Haskell sparks
+    G.timeoutAddFull (yield >> return True) G.priorityDefaultIdle 100
+    main <- mainWindow
+    instalSignalHandlers main
+    G.mainGUI
+
+instalSignalHandlers :: G.Window -> IO ()
+instalSignalHandlers main =
+    setHandler [keyboardSignal, softwareTermination] $ G.widgetDestroy main
+    where
+        setHandler s h = do
+            let h' = Catch h
+            forM_ s $ \s' -> installHandler s' h' Nothing
 
 inBackground :: NFData a => IO a -> IO (MVar a)
 inBackground f = do
