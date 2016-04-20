@@ -42,7 +42,7 @@ startGUI handler = do
     G.initGUI
     -- Needed to run Haskell sparks
     G.timeoutAddFull (yield >> return True) G.priorityDefaultIdle 100
-    main <- mainWindow handler
+    main <- newMainWindow handler
     instalSignalHandlers main
     G.mainGUI
 

@@ -1,5 +1,5 @@
 module HMenu.GUI (
-    mainWindow,
+    newMainWindow,
     ResultHandler,
     SearchHandler
 ) where
@@ -20,64 +20,118 @@ import qualified HMenu.Types                as H
 type ResultHandler = [H.Entry] -> IO ()
 type SearchHandler = ResultHandler -> Text -> IO ()
 
-mainWindow :: SearchHandler -> IO Window
-mainWindow handler = do
-    window <- windowNew
+newMainWindow :: SearchHandler -> IO Window
+newMainWindow search = do
     vbox <- vBoxNew True 5
-    input <- searchEntry (handler resultHandler)
-    set window [ windowTitle := "HMenu",-- :: U.,
-                 windowDefaultWidth := 200,
-                 windowDefaultHeight := 100,
-                 windowTypeHint := WindowTypeHintDialog,
-                 windowSkipTaskbarHint := True,
-                 windowSkipPagerHint := True,
-                 containerBorderWidth := 10,
-                 containerChild := vbox ]
+    widgetShow vbox
+    set vbox [ boxHomogeneous := False ]
+
+    buttonVBox <- vBoxNew True 5
+    resultHandler <- newResultHandler buttonVBox
+    searchEntry <- newSearchEntry (search resultHandler)
+    widgetShow searchEntry
+
+    boxPackStart vbox searchEntry PackNatural 0
+    boxPackStart vbox buttonVBox PackNatural 0
+
+    window <- windowNew
+    set window [
+            windowTitle           := "HMenu",
+            windowDecorated       := False,
+            windowDefaultWidth    := 200,
+            windowTypeHint        := WindowTypeHintDialog,
+            windowSkipTaskbarHint := True,
+            windowSkipPagerHint   := True,
+            windowWindowPosition  := WinPosCenterAlways,
+            windowFocusOnMap      := True,
+            containerBorderWidth  := 10,
+            containerChild        := vbox
+        ]
     windowStick window
-    windowSetPosition window WinPosCenterAlways
-    boxPackStart vbox input PackGrow 0
-    widgetShowAll window
-    onDestroy window bailOut
-    on window keyPressEvent $ do
-        key <- eventKeyVal
-        liftIO $ when (key == 0xff1b) bailOut -- Leave on Escape
-        return False
+    window `onDestroy` mainQuit
+    on window keyPressEvent handleKeyPress
+
+    widgetShow window
     return window
     where
-        resultHandler :: [H.Entry] -> IO ()
-        resultHandler entries =
-            forM_ entries $ \(H.Entry cmd title cmt _) -> do
-                let sTitle = unpack title
-                    sCmd   = unpack cmd
-                    sCmt   = maybe "" unpack cmt
-                printf "%s - %s - %s\n" sTitle sCmt sCmd
+        handleKeyPress = do
+            key <- eventKeyVal
+            liftIO $ when (key == 0xff1b) mainQuit -- Leave on Escape
+            return False
 
-bailOut :: IO ()
-bailOut = debug "Bye bye !" >> mainQuit
+newResultHandler :: BoxClass c => c -> IO ResultHandler
+newResultHandler container = do
+    buttonMvar <- newMVar []
+    return $ showEntries buttonMvar
+    where
+        showEntries :: MVar [Button] -> [H.Entry] -> IO ()
+        showEntries v [] = widgetHide container
+        showEntries v e  = widgetShow container >> modifyMVar_ v (updateButtons e)
+        updateButtons :: [H.Entry] -> [Button] -> IO [Button]
+        updateButtons [] [] = return []
+        updateButtons [] bs = do
+            forM_ bs doHide
+            return bs
+        updateButtons e [] = do
+            b <- newResultButton
+            updateButtons e [b]
+        updateButtons (e:es) (b:bs) = do
+            updateButton e b
+            bs' <- updateButtons es bs
+            return $ b : bs'
+        updateButton :: H.Entry -> Button -> IO ()
+        updateButton e b = do
+            let title = unpack $ H.title e
+            buttonSetLabel b title
+            doShow b
+        doShow b = do
+            widgetShow b
+            parent <- widgetGetParent b
+            case parent of
+                Just p -> return ()
+                Nothing -> boxPackStart container b PackGrow 0
+        doHide b = do
+            widgetHide b
+            parent <- widgetGetParent b
+            case parent of
+                Just p -> containerRemove container b
+                Nothing -> return ()
 
-searchEntry :: (Text -> IO ()) -> IO Entry
-searchEntry handler = do
+newResultButton :: IO Button
+newResultButton = do
+    button <- buttonNew
+    set button [
+            buttonFocusOnClick := False,
+            buttonRelief       := ReliefHalf,
+            buttonXalign       := 0
+        ]
+    return button
+
+newSearchEntry :: (Text -> IO ()) -> IO Entry
+newSearchEntry search = do
     entry <- entryNew
-    handler <- delayed 700000 $ entryChanged entry handler
-    onEditableChanged entry handler
+    handleChange <- newDelayedHandler 350000 $ handleEntryChange entry search
+    entry `onEditableChanged` handleChange
+    widgetGrabFocus entry
+    widgetGrabDefault entry
     return entry
 
-entryChanged :: Entry -> (T.Text -> IO ()) -> IO ()
-entryChanged entry handler = do
+handleEntryChange :: Entry -> (T.Text -> IO ()) -> IO ()
+handleEntryChange entry search = do
     text <- T.pack <$> entryGetText entry
     debug $ "changed: " ++ show text
-    handler text
+    search text
 
-delayed :: Int -> IO () -> IO (IO ())
-delayed delay action = do
+newDelayedHandler :: Int -> IO () -> IO (IO ())
+newDelayedHandler delay action = do
     tidVar <- newEmptyMVar
-    return $ go tidVar
+    return $ startDelay tidVar
     where
-        go tidVar = do
-            maybeTid <- tryReadMVar tidVar
+        startDelay v = do
+            maybeTid <- tryReadMVar v
             mapM_ killThread maybeTid
-            newTid <- forkFinally delayedAction $ \_ -> void $ takeMVar tidVar
-            putMVar tidVar newTid
+            newTid <- forkFinally delayedAction $ \_ -> void $ takeMVar v
+            putMVar v newTid
         delayedAction = do
             threadDelay delay
             action
