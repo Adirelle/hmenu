@@ -11,7 +11,6 @@ import qualified Data.Text               as T
 import qualified Graphics.UI.Gtk         as G
 import           System.Environment
 import           System.Posix.Signals
-import           Text.Printf
 
 import           HMenu.GUI
 import           HMenu.Provider.Path
@@ -20,7 +19,17 @@ import           HMenu.Search
 import           HMenu.Types
 
 main :: IO ()
-main = inBackground startBackend >>= startGUI
+main = do
+    indexMVar <- inBackground startBackend
+    startGUI $ handler indexMVar
+    where
+        handler :: MVar Index -> ResultHandler -> T.Text -> IO ()
+        handler indexMVar callback text = do
+            putStrLn $ "Searching for " ++ T.unpack text
+            index <- readMVar indexMVar
+            let results = if T.null text then [] else take 10 $ search index text
+            putStrLn $ "Found " ++ show (length results) ++ " results"
+            callback results
 
 startBackend :: IO Index
 startBackend = do
@@ -28,12 +37,12 @@ startBackend = do
     entries <- inParallel [listDesktopEntries, listPathEntries]
     return $ createIndex $ concat entries
 
-startGUI :: MVar Index -> IO ()
-startGUI mVar = do
+startGUI :: SearchHandler -> IO ()
+startGUI handler = do
     G.initGUI
     -- Needed to run Haskell sparks
     G.timeoutAddFull (yield >> return True) G.priorityDefaultIdle 100
-    main <- mainWindow
+    main <- mainWindow handler
     instalSignalHandlers main
     G.mainGUI
 

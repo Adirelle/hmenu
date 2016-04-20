@@ -21,6 +21,7 @@ executable hmenu
                        HMenu.ScanDirs,
                        HMenu.Search,
                        HMenu.Types,
+                       HMenu.GUI,
                        Xdg.Directories,
                        Xdg.Parser,
                        Xdg.Types
@@ -38,4 +39,4 @@ executable hmenu
                        gtk          >= 0.14 && < 0.15,
                        deepseq      >= 1.4  && < 2,
                        unix         >= 2.7  && < 3,
-                       transformers >= 0.4  && < 0.5,
+                       transformers >= 0.4  && < 0.5

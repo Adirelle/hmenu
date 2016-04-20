@@ -1,5 +1,7 @@
 module HMenu.GUI (
-    mainWindow
+    mainWindow,
+    ResultHandler,
+    SearchHandler
 ) where
 
 import           Control.Concurrent
@@ -7,14 +9,22 @@ import           Control.Concurrent.MVar
 import           Control.Exception
 import           Control.Monad
 import           Control.Monad.IO.Class
+import           Data.Maybe
+import           Data.Text                  as T
 import           Graphics.UI.Gtk
 import           Graphics.UI.Gtk.Gdk.EventM
+import           Text.Printf
 
-mainWindow :: IO Window
-mainWindow = do
+import qualified HMenu.Types                as H
+
+type ResultHandler = [H.Entry] -> IO ()
+type SearchHandler = ResultHandler -> Text -> IO ()
+
+mainWindow :: SearchHandler -> IO Window
+mainWindow handler = do
     window <- windowNew
     vbox <- vBoxNew True 5
-    input <- searchEntry
+    input <- searchEntry (handler resultHandler)
     set window [ windowTitle := "HMenu",-- :: U.,
                  windowDefaultWidth := 200,
                  windowDefaultHeight := 100,
@@ -33,21 +43,30 @@ mainWindow = do
         liftIO $ when (key == 0xff1b) bailOut -- Leave on Escape
         return False
     return window
+    where
+        resultHandler :: [H.Entry] -> IO ()
+        resultHandler entries =
+            forM_ entries $ \(H.Entry cmd title cmt _) -> do
+                let sTitle = unpack title
+                    sCmd   = unpack cmd
+                    sCmt   = maybe "" unpack cmt
+                printf "%s - %s - %s\n" sTitle sCmt sCmd
 
 bailOut :: IO ()
 bailOut = debug "Bye bye !" >> mainQuit
 
-searchEntry :: IO Entry
-searchEntry = do
+searchEntry :: (Text -> IO ()) -> IO Entry
+searchEntry handler = do
     entry <- entryNew
-    handler <- delayed 700000 $ entryChanged entry
+    handler <- delayed 700000 $ entryChanged entry handler
     onEditableChanged entry handler
     return entry
 
-entryChanged :: Entry -> IO ()
-entryChanged e = do
-    text <- entryGetText e
-    debug $ "changed: " ++ text
+entryChanged :: Entry -> (T.Text -> IO ()) -> IO ()
+entryChanged entry handler = do
+    text <- T.pack <$> entryGetText entry
+    debug $ "changed: " ++ show text
+    handler text
 
 delayed :: Int -> IO () -> IO (IO ())
 delayed delay action = do
