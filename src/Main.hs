@@ -11,6 +11,7 @@ import qualified Data.Text               as T
 import qualified Graphics.UI.Gtk         as G
 import           System.Environment
 import           System.Posix.Signals
+import           Text.Printf
 
 import           HMenu.GUI
 import           HMenu.Provider.Path
@@ -25,17 +26,20 @@ main = do
     where
         handler :: MVar Index -> ResultHandler -> T.Text -> IO ()
         handler indexMVar callback text = do
-            putStrLn $ "Searching for " ++ T.unpack text
+            printf "Searching for: %s\n" $ T.unpack text
             index <- readMVar indexMVar
             let results = if T.null text then [] else take 10 $ search index text
-            putStrLn $ "Found " ++ show (length results) ++ " results"
+            printf "Found %d results.\n" $ length results
             callback results
 
 startBackend :: IO Index
 startBackend = do
     putStrLn "Starting backend"
-    entries <- inParallel [listDesktopEntries, listPathEntries]
-    return $ createIndex $ concat entries
+    entries <- concat <$> inParallel [listDesktopEntries, listPathEntries]
+    printf "Found %d entries\n" $ length entries
+    let index = createIndex entries
+    printf "Found %d tokens\n" $ tokenCount index
+    return index
 
 startGUI :: SearchHandler -> IO ()
 startGUI handler = do

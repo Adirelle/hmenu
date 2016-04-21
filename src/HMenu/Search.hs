@@ -4,7 +4,8 @@
 module HMenu.Search (
     createIndex,
     search,
-    Index
+    Index,
+    tokenCount
 ) where
 
 import           Control.DeepSeq
@@ -40,6 +41,9 @@ createIndex entries =
         applyWeight m =
             let x = (count - fromIntegral (length m)) / count
             in if x < 0.1 then Nothing else Just $ M.map (x *) m
+
+tokenCount :: Index -> Int
+tokenCount (Index i) = M.size i
 
 search :: Index -> T.Text -> [Entry]
 search (Index index) terms =
