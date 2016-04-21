@@ -4,11 +4,9 @@ module HMenu.ScanDirs (
     scanDirs
 ) where
 
-import           Control.Monad
-import           Control.Monad.State
-import qualified Data.Map.Strict     as M
-import           System.Directory
-import           System.FilePath
+import           Control.Monad.State (StateT (..), execStateT, modify')
+import           Prelude             hiding (Map)
+import           System.Directory    (doesDirectoryExist, doesFileExist, getDirectoryContents)
 
 import           HMenu.Types
 
@@ -18,18 +16,23 @@ scanDirs fileFilter converter dirs = do
     entries <- mapM converter files
     return $ concat entries
 
-type FileMap = M.Map FilePath FilePath
+type FileMap = HashMap FilePath FilePath
 
 listFiles :: (FilePath -> IO Bool) -> [FilePath] -> IO [FilePath]
 listFiles fileFilter dirs = do
-    files <- execStateT go M.empty
-    return $ M.elems files
+    files <- execStateT go mempty
+    return $ toList files
     where
-        go = forM_ dirs $ \dir -> do
+        go :: StateT FileMap IO ()
+        go = forM_ dirs listDir
+        listDir :: FilePath -> StateT FileMap IO ()
+        listDir dir = do
             files <- liftIO $ getDirectoryContents dir
-            forM_ files $ \name -> do
-                let path = dir </> name
-                exists <- liftIO $ doesFileExist path
-                when exists $ do
-                    valid  <- liftIO $ fileFilter path
-                    when valid $ modify' $ M.insert name path
+            forM_ files $ checkFile dir
+        checkFile :: FilePath -> FilePath -> StateT FileMap IO ()
+        checkFile dir name = do
+            let path = dir </> name
+            isValid <- liftIO $ actualFilter path
+            when isValid $ modify' $ insertMap name path
+        actualFilter :: FilePath -> IO Bool
+        actualFilter p = (&&) <$> doesFileExist p <*> fileFilter p

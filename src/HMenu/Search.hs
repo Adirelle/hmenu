@@ -1,5 +1,4 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module HMenu.Search (
     createIndex,
@@ -9,48 +8,49 @@ module HMenu.Search (
 ) where
 
 import           Control.DeepSeq
-import           Control.Monad.State
-import           Data.List
-import qualified Data.Map.Strict     as M
-import           Data.Maybe
-import           Data.Ord            (Down (..))
-import qualified Data.Text           as T
-import           GHC.Generics        (Generic)
+import           Control.Monad.State (State, execState, modify')
+import           Data.Text           (inits)
+import           Prelude             hiding (Index)
 
 import           HMenu.Types
 
-type Map = M.Map
-type Token = T.Text
-type Weight = Double
-type WeightMap k = Map k Weight
+type Token       = Text
+type Weight      = Double
+type WeightMap k = HashMap k Weight
 
-newtype Index = Index (Map Token (WeightMap Entry))
+type Index_ = HashMap Token (WeightMap Entry)
+
+newtype Index = Index Index_
                 deriving (Eq, Show, Generic)
 
 instance NFData Index
 
-type Indexer = State Index ()
+type Indexer = State Index_ ()
 
 createIndex :: [Entry] -> Index
 createIndex entries =
-    let (Index rawIndex) = execState (mapM_ indexEntry entries) (Index M.empty)
-    in Index $ M.mapMaybe applyWeight rawIndex
+    let rawIndex = execState (mapM_ indexEntry entries) mempty
+        tokens = mapToList rawIndex
+        filtered = mapMaybe weighten tokens
+    in Index $ mapFromList filtered
     where
         count = fromIntegral $ length entries
-        applyWeight :: WeightMap Entry -> Maybe (WeightMap Entry)
-        applyWeight m =
-            let x = (count - fromIntegral (length m)) / count
-            in if x < 0.1 then Nothing else Just $ M.map (x *) m
+        weighten (t, m) =
+            let f = (count - fromIntegral (length m)) / count
+            in if f < 0.1
+                then Nothing
+                else Just (t, map (f *) m)
 
 tokenCount :: Index -> Int
-tokenCount (Index i) = M.size i
+tokenCount (Index i) = length i
 
-search :: Index -> T.Text -> [Entry]
+search :: Index -> Text -> [Entry]
+
 search (Index index) terms =
     let tokens  = tokenize terms
-        matches = mapMaybe (`M.lookup` index) tokens
-        pairs = M.unionsWith (+) matches
-    in map fst $ sortOn (Down . snd) $ M.toList pairs
+        matches = mapMaybe (`lookup` index) tokens
+        pairs = unionsWith (+) matches
+    in map fst $ sortOn (Down . snd) $ mapToList pairs
 
 indexEntry :: Entry -> Indexer
 indexEntry e = do
@@ -58,23 +58,23 @@ indexEntry e = do
     forM_ (comment e) (indexField 0.8)
     indexField 0.6 $ command e
     where
-        indexField :: Weight -> T.Text -> Indexer
+        indexField :: Weight -> Text -> Indexer
         indexField w t = do
             let ts = tokenize t
                 d =  fromIntegral $ length ts
             forM_ ts $ indexToken (w / d)
-        indexToken :: Weight -> T.Text -> Indexer
+        indexToken :: Weight -> Text -> Indexer
         indexToken t w = modify' $ addToken e t w
 
-addToken :: Entry -> Weight -> Token -> Index -> Index
-addToken e w t (Index i) = Index $ M.alter (alterEntry w) t i
+addToken :: Entry -> Weight -> Token -> Index_ -> Index_
+addToken e w = alterMap (alterEntry w)
     where
         alterEntry :: Weight -> Maybe (WeightMap Entry) -> Maybe (WeightMap Entry)
-        alterEntry w Nothing  = Just $ M.singleton e w
-        alterEntry w (Just m) = Just $ M.insertWith (+) e w m
+        alterEntry w Nothing  = Just $ singletonMap e w
+        alterEntry w (Just m) = Just $ insertWith (+) e w m
 
-tokenize :: T.Text -> [T.Text]
-tokenize t = concatMap (nGrams 3 8) (T.words $ T.toCaseFold t)
+tokenize :: Text -> [Text]
+tokenize t = concatMap (nGrams 3 8) (words $ toCaseFold t)
 
-nGrams :: Int -> Int -> T.Text -> [T.Text]
-nGrams a b t = t : drop a (take (b+1) $ T.inits t)
+nGrams :: Int -> Int -> Text -> [Text]
+nGrams a b t = t : drop a (take (b+1) $ inits t)

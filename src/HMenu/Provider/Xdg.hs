@@ -4,20 +4,18 @@ module HMenu.Provider.Xdg (
     listDesktopEntries
 ) where
 
-import           Control.Applicative ((<|>))
-import           Control.Monad       ((>=>))
-import           Data.Maybe          (fromJust, fromMaybe, mapMaybe)
-import qualified Data.Text           as T
-import qualified Data.Text.IO        as DTI
-import           System.Environment  (lookupEnv)
-import           System.FilePath     (takeExtension)
+import           Data.Maybe
+import           Data.Text          (splitOn)
+import qualified Data.Text.IO       as DTI
+import           System.Environment
+import           System.FilePath
 
-import           Data.Locale         (Locale, locale)
-import           HMenu.ScanDirs      (scanDirs)
-import           HMenu.Types         (Entry (..))
+import           Data.Locale
+import           HMenu.ScanDirs
+import           HMenu.Types
 import           Xdg.Directories
-import           Xdg.Parser          (parseDesktopEntry)
-import           Xdg.Types           (DesktopEntry, Group, lookupValue)
+import           Xdg.Parser
+import           Xdg.Types
 
 listDesktopEntries :: IO [Entry]
 listDesktopEntries = do
@@ -46,12 +44,12 @@ parseEntry locale desktopEntry =
             group <- lookup "Desktop Entry" desktopEntry
             main  <- parseAction locale group
             let value   = lookupValue "Actions" Nothing group
-                actions = maybe [] (T.splitOn ";") value
-                names   = map ("Desktop Action " `T.append`) actions
+                actions = maybe [] (splitOn ";") value
+                names   = map ("Desktop Action " ++) actions
             return (main, names)
         parseActions (main, names) =
             let enhance e = e {
-                    title   = T.concat [title main, ": ", title e],
+                    title   = concat [title main, ": ", title e],
                     icon    = icon e <|>icon main,
                     comment = comment e <|> comment main
                 }

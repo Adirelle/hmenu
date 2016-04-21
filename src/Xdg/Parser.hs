@@ -3,9 +3,9 @@ module Xdg.Parser (
 ) where
 
 import           Data.Attoparsec.Text
-import           Data.Locale
-import           Data.Text            (Text)
+import           Prelude              hiding (group)
 
+import           Data.Locale
 import           Xdg.Types
 
 parseDesktopEntry :: Text -> Maybe DesktopEntry
@@ -52,9 +52,6 @@ keyValuePair = do
     endOfLine
     return (Key key locale, value)
     <?> "value line"
-
-optional :: Parser a -> Parser (Maybe a)
-optional p = option Nothing (fmap Just p)
 
 identifier :: Parser Text
 identifier = takeWhile1 (inClass "a-zA-Z0-9-") <?> "identifier"

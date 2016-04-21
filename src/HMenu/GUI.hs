@@ -4,16 +4,9 @@ module HMenu.GUI (
     SearchHandler
 ) where
 
-import           Control.Concurrent
-import           Control.Concurrent.MVar
-import           Control.Exception
-import           Control.Monad
-import           Control.Monad.IO.Class
-import           Data.Maybe
-import           Data.Text                  as T
 import           Graphics.UI.Gtk
 import           Graphics.UI.Gtk.Gdk.EventM
-import           Text.Printf
+import           Prelude                    hiding (on)
 
 import qualified HMenu.Types                as H
 
@@ -36,7 +29,7 @@ newMainWindow search = do
 
     window <- windowNew
     set window [
-            windowTitle           := "HMenu",
+            windowTitle           := asString "HMenu",
             windowDecorated       := False,
             windowDefaultWidth    := 200,
             windowTypeHint        := WindowTypeHintDialog,
@@ -116,11 +109,9 @@ newSearchEntry search = do
     widgetGrabDefault entry
     return entry
 
-handleEntryChange :: Entry -> (T.Text -> IO ()) -> IO ()
-handleEntryChange entry search = do
-    text <- T.pack <$> entryGetText entry
-    debug $ "changed: " ++ show text
-    search text
+handleEntryChange :: Entry -> (Text -> IO ()) -> IO ()
+handleEntryChange entry search =
+    entryGetText entry >>= search . pack
 
 newDelayedHandler :: Int -> IO () -> IO (IO ())
 newDelayedHandler delay action = do
@@ -135,7 +126,3 @@ newDelayedHandler delay action = do
         delayedAction = do
             threadDelay delay
             action
-
-debug str = do
-    tid <- myThreadId
-    putStrLn $ show tid ++ ' ' : str
