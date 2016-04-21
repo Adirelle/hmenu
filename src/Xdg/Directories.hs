@@ -6,24 +6,27 @@ module Xdg.Directories (
     DirectoryType(..)
 ) where
 
-import           Control.Monad      (filterM, liftM2)
-import           Data.List.Split    (splitOn)
-import           Data.Maybe         (fromMaybe)
-import qualified System.Directory   as D
-import           System.Environment (lookupEnv)
-import           System.FilePath    ((</>))
+import           Data.List.Split
+import           System.Directory   (doesDirectoryExist, doesFileExist, getHomeDirectory)
+import           System.Environment
 
 data DirectoryType = DataHome | ConfigHome | CacheHome | RuntimeDir | DataDirs | ConfigDirs
                     deriving (Show, Eq)
 
-findFileWith :: DirectoryType -> (FilePath -> IO Bool) -> FilePath -> IO FilePath
-findFileWith dirType f name = fmap head (listDirectories dirType >>= filterM fileFilter . map (</> name))
-                                where fileFilter p = (&&) <$> D.doesFileExist p <*> f p
+findFileWith :: DirectoryType -> (FilePath -> IO Bool) -> FilePath -> IO (Maybe FilePath)
+findFileWith dirType f name = do
+    dirs <- listDirectories dirType
+    let paths = map (</> name) dirs
+    files <- filterM fileFilter paths
+    return $ headMay files
+    where
+        fileFilter :: FilePath -> IO Bool
+        fileFilter p = (&&) <$> doesFileExist p <*> f p
 
 findDirectories :: DirectoryType -> FilePath -> IO [FilePath]
-findDirectories dirType name = listDirectories dirType >>= filterM D.doesDirectoryExist . map (</> name)
+findDirectories dirType name = listDirectories dirType >>= filterM doesDirectoryExist . map (</> name)
 
-findFile :: DirectoryType -> FilePath -> IO FilePath
+findFile :: DirectoryType -> FilePath -> IO (Maybe FilePath)
 findFile t = findFileWith t (\_ -> return True)
 
 listDirectories :: DirectoryType -> IO [FilePath]
@@ -37,12 +40,12 @@ listDirectories ConfigDirs = liftM2 (++) (singleDir ConfigHome) (multiDirs Confi
 singleDir :: DirectoryType -> IO [FilePath]
 singleDir t = do
     d <- envOrDefault t
-    filterM D.doesDirectoryExist [d]
+    filterM doesDirectoryExist [d]
 
 multiDirs :: DirectoryType -> IO [FilePath]
 multiDirs t = do
     d <- envOrDefault t
-    filterM D.doesDirectoryExist $ splitOn ":" d
+    filterM doesDirectoryExist $ splitOn ":" d
 
 envOrDefault :: DirectoryType -> IO String
 envOrDefault t = do
@@ -60,9 +63,9 @@ variableFor DataDirs   = "XDG_DATA_DIRS"
 variableFor ConfigDirs = "XDG_CONFIG_DIRS"
 
 getDefault :: DirectoryType -> IO FilePath
-getDefault DataHome   = fmap (</> ".local/share") D.getHomeDirectory
-getDefault ConfigHome = fmap (</> ".config") D.getHomeDirectory
-getDefault CacheHome  = fmap (</> ".cache") D.getHomeDirectory
+getDefault DataHome   = fmap (</> ".local/share") getHomeDirectory
+getDefault ConfigHome = fmap (</> ".config") getHomeDirectory
+getDefault CacheHome  = fmap (</> ".cache") getHomeDirectory
 getDefault DataDirs   = return "/usr/local/share:/usr/share"
 getDefault ConfigDirs = return "/etc/xdg"
 getDefault t          = error $ "No default for " ++ show t

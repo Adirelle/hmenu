@@ -2,13 +2,9 @@
 
 module Main where
 
-import           Control.Concurrent
-import           Control.Concurrent.MVar
 import           Control.DeepSeq
-import           Control.Monad
-import           Data.Maybe
-import qualified Data.Text               as T
-import qualified Graphics.UI.Gtk         as G
+import           Graphics.UI.Gtk
+import           Prelude              hiding (Index)
 import           System.Environment
 import           System.Posix.Signals
 
@@ -23,46 +19,44 @@ main = do
     indexMVar <- inBackground startBackend
     startGUI $ handler indexMVar
     where
-        handler :: MVar Index -> ResultHandler -> T.Text -> IO ()
+        handler :: MVar Index -> ResultHandler -> Text -> IO ()
+        handler _ _ t| trace ("Searching for " ++ show t) False = undefined
         handler indexMVar callback text = do
-            putStrLn $ "Searching for " ++ T.unpack text
             index <- readMVar indexMVar
-            let results = if T.null text then [] else take 10 $ search index text
-            putStrLn $ "Found " ++ show (length results) ++ " results"
-            callback results
+            let results = if null text then [] else take 10 $ search index text
+            callback $ trace ("Found " ++ show (length results) ++ " results") results
 
 startBackend :: IO Index
 startBackend = do
-    putStrLn "Starting backend"
     entries <- inParallel [listDesktopEntries, listPathEntries]
     return $ createIndex $ concat entries
 
 startGUI :: SearchHandler -> IO ()
 startGUI handler = do
-    G.initGUI
+    initGUI
     -- Needed to run Haskell sparks
-    G.timeoutAddFull (yield >> return True) G.priorityDefaultIdle 100
+    timeoutAddFull (yieldThread >> return True) priorityDefaultIdle 100
     main <- newMainWindow handler
     instalSignalHandlers main
-    G.mainGUI
+    mainGUI
 
-instalSignalHandlers :: G.Window -> IO ()
-instalSignalHandlers main =
-    setHandler [keyboardSignal, softwareTermination] $ G.widgetDestroy main
-    where
-        setHandler s h = do
-            let h' = Catch h
-            forM_ s $ \s' -> installHandler s' h' Nothing
+instalSignalHandlers :: Window -> IO ()
+instalSignalHandlers main = do
+    let byeBye = Catch $ widgetDestroy main
+    _ <- installHandler keyboardSignal byeBye Nothing
+    _ <- installHandler softwareTermination byeBye Nothing
+    return ()
 
 inBackground :: NFData a => IO a -> IO (MVar a)
+inBackground _ | trace "Starting a function in background" False = undefined
 inBackground f = do
-    putStrLn "Starting function in backgronud"
     mvar <- newEmptyMVar
     forkFinally f $ atEnd mvar
     return mvar
     where
-        atEnd _    (Left e)  = putStrLn $ "Got error: " ++ show e
-        atEnd mvar (Right a) = a `deepseq` do { putStrLn "Got value"; putMVar mvar a }
+        atEnd :: NFData a => MVar a -> Either SomeException a -> IO ()
+        atEnd _    (Left e)  = return $ trace ("Got error: " ++ show e) ()
+        atEnd mvar (Right a) = a `deepseq` putMVar mvar $ trace ("Got value") a
 
 inParallel :: NFData a => [IO a] -> IO [a]
 inParallel actions = do

@@ -2,16 +2,9 @@
 
 module Xdg.Types where
 
-import           Control.Applicative
 import           Control.DeepSeq
-import qualified Data.Char           as DC
-import           Data.List
-import           Data.Maybe
-import           Data.Ord
-import           Data.Text           (Text)
-import           GHC.Generics        (Generic)
 
-import qualified Data.Locale         as L
+import qualified Data.Locale     as L
 
 type DesktopEntry = [(Text, Group)]
 

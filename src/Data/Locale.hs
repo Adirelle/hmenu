@@ -1,5 +1,4 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Data.Locale (
     Locale(..),
@@ -9,9 +8,6 @@ module Data.Locale (
 
 import           Control.DeepSeq
 import           Data.Attoparsec.Text
-import           Data.String
-import           Data.Text            (Text, pack, unpack)
-import           GHC.Generics         (Generic)
 
 data Locale = Locale Text (Maybe Text) (Maybe Text) (Maybe Text)
               deriving (Ord, Eq, Show, Generic)
@@ -32,9 +28,6 @@ localeParser = do
     modifier <- optional (char '@' *> identifier) <?> "modifier"
     return $ Locale lang country encoding modifier
     <?> "locale"
-
-optional :: Parser a -> Parser (Maybe a)
-optional p = option Nothing (fmap Just p)
 
 identifier :: Parser Text
 identifier = takeWhile1 (inClass "a-zA-Z0-9-") <?> "identifier"

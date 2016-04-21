@@ -4,8 +4,6 @@ module HMenu.Provider.Path (
     listPathEntries
 ) where
 
-import           Control.Monad
-import           Data.Text        (pack)
 import           System.Directory
 import           System.FilePath
 

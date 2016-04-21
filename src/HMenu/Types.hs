@@ -17,3 +17,5 @@ data Entry = Entry {
 } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Entry
+
+instance Hashable Entry
