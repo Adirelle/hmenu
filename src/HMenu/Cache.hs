@@ -29,9 +29,9 @@ setupCache' path var input func = do
     aCachedHash <- async retrieve
     void $ async $ refresh aHash aCachedHash
     where
-        calcHash = do
+        calcHash =
             let value = hash input
-            value `seq` return value
+            in value `seq` return value
         retrieve = do
             input <- readCache path
             case input of
@@ -45,11 +45,12 @@ setupCache' path var input func = do
             case maybeOld of
                 Just old | current == old ->
                     return ()
-                Nothing -> do
-                    _ <- tryReadMVar var
+                Nothing ->
                     let value = func input
-                    value `deepseq` putMVar var value
-                    writeCache path $ CachedData current value
+                    in value `deepseq` do
+                        _ <- tryReadMVar var
+                        putMVar var value
+                        writeCache path $ CachedData current value
 
 writeCache :: Binary a => FilePath -> CachedData a -> IO ()
 writeCache path dataToCache = ensureParent path >> encodeFile path dataToCache
