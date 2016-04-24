@@ -8,6 +8,7 @@ module HMenu.Types (
 import           Control.DeepSeq
 import           Data.Text       (Text, unpack)
 import           GHC.Generics    (Generic)
+import Data.Binary
 
 data Entry = Entry {
     command :: Text,
@@ -17,5 +18,5 @@ data Entry = Entry {
 } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Entry
-
+instance Binary Entry
 instance Hashable Entry

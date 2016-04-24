@@ -3,12 +3,14 @@
 module Main where
 
 import           Control.DeepSeq
+import           Control.Monad.Loops
 import           Graphics.UI.Gtk
 import           Prelude              hiding (Index)
 import           System.Environment
 import           System.Posix.Signals
 import           Text.Printf
 
+import           HMenu.Cache
 import           HMenu.GUI
 import           HMenu.Provider.Path
 import           HMenu.Provider.Xdg
@@ -21,7 +23,7 @@ main = do
     startGUI $ handler indexMVar
     where
         handler :: MVar Index -> ResultHandler -> Text -> IO ()
-        handler _ _ t| trace ("Searching for " ++ show t) False = undefined
+        handler _ _ t| trace ("Searching for " ++ show t) False = error "Shouldn't happen"
         handler indexMVar callback text = do
             index <- readMVar indexMVar
             let results = if null text then [] else take 10 $ search index text
@@ -29,9 +31,16 @@ main = do
 
 startBackend :: IO Index
 startBackend = do
-    entries <- concat <$> inParallel [listDesktopEntries, listPathEntries]
-    let index = createIndex $ trace ("Found " ++ show (length entries) ++ " entries") entries
-    return $ trace ("Found " ++ show (tokenCount index) ++ " tokens") index
+    e <- concat <$> inParallel [listDesktopEntries, listPathEntries]
+    let h = hash e
+    c <- cacheFetch "index"
+    case c of
+        Just (h', i) | h' == h ->
+            return i
+        _ -> do
+            let i = createIndex e
+            cacheStore "index" h i
+            return i
 
 startGUI :: SearchHandler -> IO ()
 startGUI handler = do
@@ -58,7 +67,7 @@ inBackground f = do
     where
         atEnd :: NFData a => MVar a -> Either SomeException a -> IO ()
         atEnd _    (Left e)  = return $ trace ("Got error: " ++ show e) ()
-        atEnd mvar (Right a) = a `deepseq` putMVar mvar $ trace ("Got value") a
+        atEnd mvar (Right a) = a `deepseq` putMVar mvar $ trace "Got value" a
 
 inParallel :: NFData a => [IO a] -> IO [a]
 inParallel actions = do

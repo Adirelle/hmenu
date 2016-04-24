@@ -9,6 +9,7 @@ module HMenu.Search (
 
 import           Control.DeepSeq
 import           Control.Monad.State (State, execState, modify')
+import           Data.Binary
 import           Data.Text           (inits)
 import           Prelude             hiding (Index)
 
@@ -24,6 +25,12 @@ newtype Index = Index Index_
                 deriving (Eq, Show, Generic)
 
 instance NFData Index
+
+instance (Hashable k, Eq k, Binary k, Binary v) => Binary (HashMap k v) where
+    put = put . mapToList
+    get = fmap mapFromList get
+
+instance Binary Index
 
 type Indexer = State Index_ ()
 
