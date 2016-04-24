@@ -19,7 +19,7 @@ newMainWindow search = do
     widgetShow vbox
     set vbox [ boxHomogeneous := False ]
 
-    buttonVBox <- vBoxNew True 5
+    buttonVBox <- vBoxNew True 0
     resultHandler <- newResultHandler buttonVBox
     searchEntry <- newSearchEntry (search resultHandler)
     widgetShow searchEntry
@@ -31,7 +31,7 @@ newMainWindow search = do
     set window [
             windowTitle           := asString "HMenu",
             windowDecorated       := False,
-            windowDefaultWidth    := 200,
+            windowDefaultWidth    := 400,
             windowTypeHint        := WindowTypeHintDialog,
             windowSkipTaskbarHint := True,
             windowSkipPagerHint   := True,
@@ -42,15 +42,22 @@ newMainWindow search = do
         ]
     windowStick window
     window `onDestroy` mainQuit
-    on window keyPressEvent handleKeyPress
+    window `on` keyPressEvent $ handleKeyPress searchEntry resultHandler
 
     widgetShow window
     return window
+
+handleKeyPress e h =
+    eventKeyVal >>= liftIO . handleKey >> return False
     where
-        handleKeyPress = do
-            key <- eventKeyVal
-            liftIO $ when (key == 0xff1b) mainQuit -- Leave on Escape
-            return False
+        handleKey k = when (k == 0xff1b) escapePressed
+        escapePressed = do
+            t <- asText <$> entryGetText e
+            if null t then
+                mainQuit
+            else do
+                entrySetText e $ asText ""
+                h []
 
 newResultHandler :: BoxClass c => c -> IO ResultHandler
 newResultHandler container = do
