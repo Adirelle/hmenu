@@ -1,34 +1,52 @@
 module HMenu.GUI (
-    newMainWindow,
+    runGUI,
     ResultHandler,
     SearchHandler
 ) where
 
+import           Control.Concurrent.Async
 import           Graphics.UI.Gtk
-import           Graphics.UI.Gtk.Gdk.EventM
-import           Prelude                    hiding (on)
+import           Prelude                  hiding (on)
 
-import qualified HMenu.Types                as H
+import qualified HMenu.Types              as H
 
 type ResultHandler = [H.Entry] -> IO ()
 type SearchHandler = ResultHandler -> Text -> IO ()
 
-newMainWindow :: SearchHandler -> IO Window
-newMainWindow search = do
+data GUI = GUI {
+        main      :: Window,
+        input     :: Entry,
+        search    :: SearchHandler,
+        resultBox :: VBox,
+        buttons   :: MVar [Button],
+        timer     :: MVar (Async ())
+    }
+
+runGUI :: (Window -> IO ()) -> SearchHandler -> IO ()
+runGUI setup search = do
+    initGUI
+    timeoutAddFull (yieldThread >> return True) priorityDefaultIdle 100
+    gui <- newGUI search
+    setup $ main gui
+    mainGUI
+
+newGUI :: SearchHandler -> IO GUI
+newGUI search = do
+    main <- windowNew
+    input <- entryNew
+    resultBox <- vBoxNew True 0
+    buttons <- newMVar []
+    asyncNoop <- async $ return ()
+    timer <- newMVar asyncNoop
+
+    let gui = GUI main input search resultBox buttons timer
+
     vbox <- vBoxNew True 5
-    widgetShow vbox
     set vbox [ boxHomogeneous := False ]
+    boxPackStart vbox input PackNatural 0
+    boxPackStart vbox resultBox PackNatural 0
 
-    buttonVBox <- vBoxNew True 0
-    resultHandler <- newResultHandler buttonVBox
-    searchEntry <- newSearchEntry (search resultHandler)
-    widgetShow searchEntry
-
-    boxPackStart vbox searchEntry PackNatural 0
-    boxPackStart vbox buttonVBox PackNatural 0
-
-    window <- windowNew
-    set window [
+    set main [
             windowTitle           := asString "HMenu",
             windowDecorated       := False,
             windowDefaultWidth    := 400,
@@ -40,33 +58,36 @@ newMainWindow search = do
             containerBorderWidth  := 10,
             containerChild        := vbox
         ]
-    windowStick window
-    window `onDestroy` mainQuit
-    window `on` keyPressEvent $ handleKeyPress searchEntry resultHandler
+    windowStick main
+    main `onDestroy` mainQuit
 
-    widgetShow window
-    return window
+    main `on` keyPressEvent $ handleKeyPress gui
+    input `on` editableChanged $ handleChange gui
 
-handleKeyPress e h =
+    widgetShow input
+    widgetShow vbox
+    widgetShow main
+    return gui
+
+handleKeyPress gui =
     eventKeyVal >>= liftIO . handleKey >> return False
     where
         handleKey k = when (k == 0xff1b) escapePressed
         escapePressed = do
-            t <- asText <$> entryGetText e
+            t <- asText <$> entryGetText (input gui)
             if null t then
                 mainQuit
             else do
-                entrySetText e $ asText ""
-                h []
+                entrySetText (input gui) $ asText ""
+                showResults gui []
 
-newResultHandler :: BoxClass c => c -> IO ResultHandler
-newResultHandler container = do
-    buttonMvar <- newMVar []
-    return $ showEntries buttonMvar
+showResults :: GUI -> [H.Entry] -> IO ()
+showResults gui [] =
+    widgetHide (resultBox gui)
+showResults gui entries = do
+    modifyMVar_ (buttons gui) $ updateButtons entries
+    widgetShow (resultBox gui)
     where
-        showEntries :: MVar [Button] -> [H.Entry] -> IO ()
-        showEntries v [] = widgetHide container
-        showEntries v e  = widgetShow container >> modifyMVar_ v (updateButtons e)
         updateButtons :: [H.Entry] -> [Button] -> IO [Button]
         updateButtons [] [] = return []
         updateButtons [] bs = do
@@ -89,15 +110,14 @@ newResultHandler container = do
             parent <- widgetGetParent b
             case parent of
                 Just p -> return ()
-                Nothing -> boxPackStart container b PackGrow 0
+                Nothing -> boxPackStart (resultBox gui) b PackGrow 0
         doHide b = do
             widgetHide b
             parent <- widgetGetParent b
             case parent of
-                Just p -> containerRemove container b
+                Just p -> containerRemove (resultBox gui) b
                 Nothing -> return ()
 
-newResultButton :: IO Button
 newResultButton = do
     button <- buttonNew
     set button [
@@ -107,29 +127,12 @@ newResultButton = do
         ]
     return button
 
-newSearchEntry :: (Text -> IO ()) -> IO Entry
-newSearchEntry search = do
-    entry <- entryNew
-    handleChange <- newDelayedHandler 350000 $ handleEntryChange entry search
-    entry `onEditableChanged` handleChange
-    widgetGrabFocus entry
-    widgetGrabDefault entry
-    return entry
-
-handleEntryChange :: Entry -> (Text -> IO ()) -> IO ()
-handleEntryChange entry search =
-    entryGetText entry >>= search . pack
-
-newDelayedHandler :: Int -> IO () -> IO (IO ())
-newDelayedHandler delay action = do
-    tidVar <- newEmptyMVar
-    return $ startDelay tidVar
+handleChange gui = liftIO $ modifyMVar_ (timer gui) restartTimer
     where
-        startDelay v = do
-            maybeTid <- tryReadMVar v
-            mapM_ killThread maybeTid
-            newTid <- forkFinally delayedAction $ \_ -> void $ takeMVar v
-            putMVar v newTid
-        delayedAction = do
-            threadDelay delay
-            action
+        restartTimer prev = do
+            cancel prev
+            async $ waitAndSearch (input gui) (search gui) (showResults gui)
+        waitAndSearch input search showResults = do
+            threadDelay 500000
+            text <- entryGetText input
+            search showResults text

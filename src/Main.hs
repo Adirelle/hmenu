@@ -3,7 +3,7 @@
 module Main where
 
 import           Graphics.UI.Gtk
-import           Prelude             hiding (Index)
+import           Prelude              hiding (Index)
 import           System.Posix.Signals
 
 import           HMenu.Cache
@@ -16,7 +16,7 @@ import           HMenu.Types
 main :: IO ()
 main = do
     getIndex <- prepareIndex
-    startGUI $ handler getIndex
+    runGUI instalSignalHandlers (handler getIndex)
     where
         handler :: IO Index -> ResultHandler -> Text -> IO ()
         handler _ _ t | trace ("Searching for " ++ show t) False = error "Shouldn't happen"
@@ -29,15 +29,6 @@ prepareIndex :: IO (IO Index)
 prepareIndex = do
     entries <- (++) <$> listDesktopEntries <*> listPathEntries
     setupCache "index" entries createIndex
-
-startGUI :: SearchHandler -> IO ()
-startGUI handler = do
-    initGUI
-    -- Needed to run Haskell sparks
-    timeoutAddFull (yieldThread >> return True) priorityDefaultIdle 100
-    main <- newMainWindow handler
-    instalSignalHandlers main
-    mainGUI
 
 instalSignalHandlers :: Window -> IO ()
 instalSignalHandlers main = do

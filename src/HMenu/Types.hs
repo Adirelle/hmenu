@@ -6,9 +6,9 @@ module HMenu.Types (
 ) where
 
 import           Control.DeepSeq
+import           Data.Binary
 import           Data.Text       (Text, unpack)
 import           GHC.Generics    (Generic)
-import Data.Binary
 
 data Entry = Entry {
     command :: Text,
