@@ -6,21 +6,25 @@ module HMenu.GUI (
 
 import           Control.Concurrent.Async
 import           Graphics.UI.Gtk
-import           Prelude                  hiding (on)
+import qualified Graphics.UI.Gtk.General.Enums as E
+import           Graphics.UI.Gtk.Layout.Grid
+import           Prelude                       hiding (on)
 
-import qualified HMenu.Types              as H
+import qualified HMenu.Types                   as H
 
 type ResultHandler = [H.Entry] -> IO ()
 type SearchHandler = ResultHandler -> Text -> IO ()
 
-data GUI = GUI {
-        main      :: Window,
-        input     :: Entry,
-        search    :: SearchHandler,
-        resultBox :: VBox,
-        buttons   :: MVar [Button],
-        timer     :: MVar (Async ())
-    }
+data ResultButton = RB { bButton :: Button
+                       , bLabel  :: Label
+                       , bIcon   :: Image }
+
+data GUI = GUI { main      :: Window
+               , input     :: Entry
+               , search    :: SearchHandler
+               , resultBox :: VBox
+               , buttons   :: MVar [ResultButton]
+               , timer     :: MVar (Async ()) }
 
 runGUI :: (Window -> IO ()) -> SearchHandler -> IO ()
 runGUI setup search = do
@@ -32,12 +36,12 @@ runGUI setup search = do
 
 newGUI :: SearchHandler -> IO GUI
 newGUI search = do
-    main <- windowNew
-    input <- entryNew
+    main      <- windowNew
+    input     <- entryNew
     resultBox <- vBoxNew True 0
-    buttons <- newMVar []
+    buttons   <- newMVar []
     asyncNoop <- async $ return ()
-    timer <- newMVar asyncNoop
+    timer     <- newMVar asyncNoop
 
     let gui = GUI main input search resultBox buttons timer
 
@@ -46,21 +50,19 @@ newGUI search = do
     boxPackStart vbox input PackNatural 0
     boxPackStart vbox resultBox PackNatural 0
 
-    set main [
-            windowTitle           := asString "HMenu",
-            windowDecorated       := False,
-            windowDefaultWidth    := 400,
-            windowTypeHint        := WindowTypeHintDialog,
-            windowSkipTaskbarHint := True,
-            windowSkipPagerHint   := True,
-            windowWindowPosition  := WinPosCenterAlways,
-            windowFocusOnMap      := True,
-            containerBorderWidth  := 10,
-            containerChild        := vbox
-        ]
+    set main [ windowTitle           := asString "HMenu"
+             , windowDecorated       := False
+             , windowDefaultWidth    := 400
+             , windowTypeHint        := WindowTypeHintDialog
+             , windowSkipTaskbarHint := True
+             , windowSkipPagerHint   := True
+             , windowWindowPosition  := WinPosCenterAlways
+             , windowFocusOnMap      := True
+             , containerBorderWidth  := 10
+             , containerChild        := vbox ]
     windowStick main
-    main `onDestroy` mainQuit
 
+    main `on` destroyEvent $ liftIO mainQuit >> return False
     main `on` keyPressEvent $ handleKeyPress gui
     input `on` editableChanged $ handleChange gui
 
@@ -82,13 +84,14 @@ handleKeyPress gui =
                 showResults gui []
 
 showResults :: GUI -> [H.Entry] -> IO ()
-showResults gui [] =
+showResults gui [] = do
     widgetHide (resultBox gui)
+    containerResizeChildren (main gui)
 showResults gui entries = do
     modifyMVar_ (buttons gui) $ updateButtons entries
     widgetShow (resultBox gui)
     where
-        updateButtons :: [H.Entry] -> [Button] -> IO [Button]
+        updateButtons :: [H.Entry] -> [ResultButton] -> IO [ResultButton]
         updateButtons [] [] = return []
         updateButtons [] bs = do
             forM_ bs doHide
@@ -100,32 +103,57 @@ showResults gui entries = do
             updateButton e b
             bs' <- updateButtons es bs
             return $ b : bs'
-        updateButton :: H.Entry -> Button -> IO ()
+
+        updateButton :: H.Entry -> ResultButton -> IO ()
         updateButton e b = do
-            let title = unpack $ H.title e
-            buttonSetLabel b title
+            labelSetMarkup (bLabel b) $ "<b>" ++ H.title e ++ "</b>" ++ commentLine (H.comment e)
+            case H.icon e of
+                Just i -> do
+                    imageSetFromIconName (bIcon b) i IconSizeDialog
+                    widgetShow (bIcon b)
+                Nothing ->
+                    widgetHide (bIcon b)
             doShow b
-        doShow b = do
-            widgetShow b
-            parent <- widgetGetParent b
+            where
+                commentLine :: Maybe Text -> Text
+                commentLine Nothing   = ""
+                commentLine (Just c ) = "\n<span size=\"smaller\">" ++ c ++ "</span>"
+
+        doShow :: ResultButton -> IO ()
+        doShow b = let w = bButton b in do
+            widgetShow w
+            parent <- widgetGetParent w
             case parent of
                 Just p -> return ()
-                Nothing -> boxPackStart (resultBox gui) b PackGrow 0
-        doHide b = do
-            widgetHide b
-            parent <- widgetGetParent b
+                Nothing -> boxPackStart (resultBox gui) w PackGrow 0
+
+        doHide :: ResultButton -> IO ()
+        doHide b = let w = bButton b in do
+            widgetHide w
+            parent <- widgetGetParent w
             case parent of
-                Just p -> containerRemove (resultBox gui) b
+                Just p -> containerRemove (resultBox gui) w
                 Nothing -> return ()
 
+newResultButton :: IO ResultButton
 newResultButton = do
-    button <- buttonNew
-    set button [
-            buttonFocusOnClick := False,
-            buttonRelief       := ReliefHalf,
-            buttonXalign       := 0
-        ]
-    return button
+    button  <- buttonNew
+    label   <- labelNew (Nothing :: Maybe Text)
+    icon    <- imageNew
+    layout  <- hBoxNew False 0
+
+    set button [ buttonFocusOnClick := False
+               , buttonRelief       := ReliefHalf
+               , containerChild     := layout ]
+
+    labelSetUseMarkup label True
+    widgetShow label
+
+    boxPackStart layout icon  PackNatural 0
+    boxPackStart layout label PackNatural 5
+    widgetShow layout
+
+    return $ RB button label icon
 
 handleChange gui = liftIO $ modifyMVar_ (timer gui) restartTimer
     where
@@ -135,4 +163,7 @@ handleChange gui = liftIO $ modifyMVar_ (timer gui) restartTimer
         waitAndSearch input search showResults = do
             threadDelay 500000
             text <- entryGetText input
-            search showResults text
+            if null text then
+                showResults []
+            else
+                search showResults text

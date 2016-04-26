@@ -15,7 +15,8 @@ cabal-version:       >=1.10
 executable hmenu
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       Data.Locale,
+  other-modules:       Prelude,
+                       Data.Locale,
                        HMenu.Provider.Path,
                        HMenu.Provider.Xdg,
                        HMenu.ScanDirs,
@@ -39,7 +40,7 @@ executable hmenu
                        filepath       >= 1.4    && < 2,
                        mtl            >= 2.2    && < 3,
                        split          >= 0.2    && < 0.3,
-                       gtk            >= 0.14   && < 0.15,
+                       gtk3           >= 0.14   && < 0.15,
                        deepseq        >= 1.4    && < 2,
                        unix           >= 2.7    && < 3,
                        transformers   >= 0.4    && < 0.5,
