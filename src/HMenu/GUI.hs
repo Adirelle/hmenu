@@ -19,12 +19,15 @@ data ResultButton = RB { bButton :: Button
                        , bLabel  :: Label
                        , bIcon   :: Image }
 
-data GUI = GUI { main      :: Window
-               , input     :: Entry
-               , search    :: SearchHandler
-               , resultBox :: VBox
-               , buttons   :: MVar [ResultButton]
-               , timer     :: MVar (Async ()) }
+data GUI = GUI { main        :: Window
+               , layout      :: VBox
+               , input       :: Entry
+               , search      :: SearchHandler
+               , resultBox   :: VBox
+               , buttons     :: MVar [ResultButton]
+               , timer       :: MVar (Async ())
+               , iconSGroup  :: SizeGroup
+               , labelSGroup :: SizeGroup }
 
 runGUI :: (Window -> IO ()) -> SearchHandler -> IO ()
 runGUI setup search = do
@@ -36,30 +39,36 @@ runGUI setup search = do
 
 newGUI :: SearchHandler -> IO GUI
 newGUI search = do
-    main      <- windowNew
-    input     <- entryNew
-    resultBox <- vBoxNew True 0
-    buttons   <- newMVar []
-    asyncNoop <- async $ return ()
-    timer     <- newMVar asyncNoop
+    main        <- windowNew
+    layout      <- vBoxNew False 10
+    input       <- entryNew
+    resultBox   <- vBoxNew True 0
+    buttons     <- newMVar []
+    asyncNoop   <- async $ return ()
+    timer       <- newMVar asyncNoop
+    iconSGroup  <- sizeGroupNew SizeGroupHorizontal
+    labelSGroup <- sizeGroupNew SizeGroupHorizontal
 
-    let gui = GUI main input search resultBox buttons timer
+    let gui = GUI main layout input search resultBox buttons timer iconSGroup labelSGroup
 
-    vbox <- vBoxNew True 5
-    set vbox [ boxHomogeneous := False ]
-    boxPackStart vbox input PackNatural 0
-    boxPackStart vbox resultBox PackNatural 0
+    sizeGroupSetIgnoreHidden iconSGroup True
+    sizeGroupSetIgnoreHidden labelSGroup True
+
+    boxPackStart layout input PackNatural 0
 
     set main [ windowTitle           := asString "HMenu"
-             , windowDecorated       := False
-             , windowDefaultWidth    := 400
+             --, windowDecorated       := False
+             , windowResizable       := False
+             , windowHasResizeGrip   := False
              , windowTypeHint        := WindowTypeHintDialog
              , windowSkipTaskbarHint := True
              , windowSkipPagerHint   := True
+             , windowOpacity         := 0.5
              , windowWindowPosition  := WinPosCenterAlways
              , windowFocusOnMap      := True
              , containerBorderWidth  := 10
-             , containerChild        := vbox ]
+             , containerChild        := layout ]
+    widgetSetSizeRequest main 400 0
     windowStick main
 
     main `on` destroyEvent $ liftIO mainQuit >> return False
@@ -67,7 +76,7 @@ newGUI search = do
     input `on` editableChanged $ handleChange gui
 
     widgetShow input
-    widgetShow vbox
+    widgetShow layout
     widgetShow main
     return gui
 
@@ -85,11 +94,15 @@ handleKeyPress gui =
 
 showResults :: GUI -> [H.Entry] -> IO ()
 showResults gui [] = do
-    widgetHide (resultBox gui)
-    containerResizeChildren (main gui)
+    let b = resultBox gui
+    p <- widgetGetParent b
+    when (isJust p) $ containerRemove (layout gui) b
+    widgetHide b
 showResults gui entries = do
+    let b = resultBox gui
     modifyMVar_ (buttons gui) $ updateButtons entries
-    widgetShow (resultBox gui)
+    boxPackStart (layout gui) b PackNatural 0
+    widgetShow b
     where
         updateButtons :: [H.Entry] -> [ResultButton] -> IO [ResultButton]
         updateButtons [] [] = return []
@@ -97,7 +110,7 @@ showResults gui entries = do
             forM_ bs doHide
             return bs
         updateButtons e [] = do
-            b <- newResultButton
+            b <- newResultButton gui
             updateButtons e [b]
         updateButtons (e:es) (b:bs) = do
             updateButton e b
@@ -122,31 +135,31 @@ showResults gui entries = do
         doShow :: ResultButton -> IO ()
         doShow b = let w = bButton b in do
             widgetShow w
-            parent <- widgetGetParent w
-            case parent of
-                Just p -> return ()
-                Nothing -> boxPackStart (resultBox gui) w PackGrow 0
+            p <- widgetGetParent w
+            unless (isJust p) $ boxPackStart (resultBox gui) w PackNatural 0
 
         doHide :: ResultButton -> IO ()
         doHide b = let w = bButton b in do
             widgetHide w
-            parent <- widgetGetParent w
-            case parent of
-                Just p -> containerRemove (resultBox gui) w
-                Nothing -> return ()
+            p <- widgetGetParent w
+            when (isJust p) $ containerRemove (resultBox gui) w
 
-newResultButton :: IO ResultButton
-newResultButton = do
+newResultButton :: GUI -> IO ResultButton
+newResultButton gui = do
     button  <- buttonNew
     label   <- labelNew (Nothing :: Maybe Text)
     icon    <- imageNew
     layout  <- hBoxNew False 0
+
+    sizeGroupAddWidget (iconSGroup gui)  icon
+    sizeGroupAddWidget (labelSGroup gui) label
 
     set button [ buttonFocusOnClick := False
                , buttonRelief       := ReliefHalf
                , containerChild     := layout ]
 
     labelSetUseMarkup label True
+    miscSetAlignment label 0.0 0.5
     widgetShow label
 
     boxPackStart layout icon  PackNatural 0
