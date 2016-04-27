@@ -1,7 +1,9 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Xdg.Types where
 
+import           ClassyPrelude
 import           Control.DeepSeq
 
 import qualified Data.Locale     as L

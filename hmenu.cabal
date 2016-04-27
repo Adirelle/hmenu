@@ -15,8 +15,7 @@ cabal-version:       >=1.10
 executable hmenu
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       Prelude,
-                       Data.Locale,
+  other-modules:       Data.Locale,
                        HMenu.Provider.Path,
                        HMenu.Provider.Xdg,
                        HMenu.ScanDirs,
@@ -25,11 +24,10 @@ executable hmenu
                        HMenu.GUI,
                        Xdg.Directories,
                        Xdg.Parser,
-                       Xdg.Types,
-                       Prelude
+                       Xdg.Types
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
-  build-depends:       base-noprelude == 4.8.*,
+  build-depends:       base           == 4.8.*,
                        classy-prelude >= 0.12.7 && < 0.13,
                        text           >= 1.2    && < 2,
                        time           >= 1.5    && < 2,

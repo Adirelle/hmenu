@@ -1,14 +1,16 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module HMenu.GUI (
     runGUI,
     ResultHandler,
     SearchHandler
 ) where
 
+import ClassyPrelude hiding (on)
 import           Control.Concurrent.Async
 import           Graphics.UI.Gtk
 import qualified Graphics.UI.Gtk.General.Enums as E
 import           Graphics.UI.Gtk.Layout.Grid
-import           Prelude                       hiding (on)
 
 import qualified HMenu.Types                   as H
 

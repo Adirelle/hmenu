@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Xdg.Directories (
     listDirectories,
     findDirectories,
@@ -6,6 +8,7 @@ module Xdg.Directories (
     DirectoryType(..)
 ) where
 
+import           ClassyPrelude
 import           Data.List.Split
 import           System.Directory   (doesDirectoryExist, doesFileExist, getHomeDirectory)
 import           System.Environment

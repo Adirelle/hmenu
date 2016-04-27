@@ -1,9 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Main where
 
 import           Graphics.UI.Gtk
-import           Prelude              hiding (Index)
+import           ClassyPrelude              hiding (Index)
 import           System.Posix.Signals
 
 import           HMenu.Cache

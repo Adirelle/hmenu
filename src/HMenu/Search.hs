@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Search (
     createIndex,
@@ -11,7 +12,7 @@ import           Control.DeepSeq
 import           Control.Monad.State (State, execState, modify')
 import           Data.Binary
 import           Data.Text           (inits)
-import           Prelude             hiding (Index)
+import           ClassyPrelude             hiding (Index)
 
 import           HMenu.Types
 

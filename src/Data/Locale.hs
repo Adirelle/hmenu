@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Data.Locale (
     Locale(..),
@@ -6,6 +7,7 @@ module Data.Locale (
     localeParser
 ) where
 
+import ClassyPrelude
 import           Control.DeepSeq
 import           Data.Attoparsec.Text
 

@@ -1,9 +1,11 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Xdg.Parser (
     parseDesktopEntry
 ) where
 
 import           Data.Attoparsec.Text
-import           Prelude              hiding (group)
+import           ClassyPrelude              hiding (group)
 
 import           Data.Locale
 import           Xdg.Types

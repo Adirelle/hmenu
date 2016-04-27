@@ -1,7 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Cache (setupCache) where
 
+import ClassyPrelude
 import           Control.Concurrent.Async
 import           Control.DeepSeq
 import           Data.Binary

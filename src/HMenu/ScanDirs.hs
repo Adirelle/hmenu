@@ -1,11 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.ScanDirs (
     scanDirs
 ) where
 
 import           Control.Monad.State (StateT (..), execStateT, modify')
-import           Prelude             hiding (Map)
+import           ClassyPrelude             hiding (Map)
 import           System.Directory    (doesDirectoryExist, doesFileExist, getDirectoryContents)
 
 import           HMenu.Types

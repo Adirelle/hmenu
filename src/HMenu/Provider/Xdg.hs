@@ -1,9 +1,10 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Provider.Xdg (
     listDesktopEntries
 ) where
 
+import ClassyPrelude
 import           Data.Maybe
 import           Data.Text          (splitOn)
 import qualified Data.Text.IO       as DTI

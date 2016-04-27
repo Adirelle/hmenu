@@ -1,10 +1,11 @@
 {-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Types (
     Entry(..)
 ) where
 
+import           ClassyPrelude
 import           Control.DeepSeq
 import           Data.Binary
 import           Data.Text       (Text, unpack)

@@ -1,9 +1,10 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Provider.Path (
     listPathEntries
 ) where
 
+import           ClassyPrelude
 import           System.Directory
 import           System.FilePath
 
