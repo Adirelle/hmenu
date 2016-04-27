@@ -120,12 +120,8 @@ showResults gui entries = do
         updateButton :: H.Entry -> ResultButton -> IO ()
         updateButton e b = do
             labelSetMarkup (bLabel b) $ "<b>" ++ H.title e ++ "</b>" ++ commentLine (H.comment e)
-            case H.icon e of
-                Just i -> do
-                    imageSetFromIconName (bIcon b) i IconSizeDialog
-                    widgetShow (bIcon b)
-                Nothing ->
-                    widgetHide (bIcon b)
+            set (bIcon b) [ imageIconName  := fromMaybe "system-run" $ H.icon e
+                          , imagePixelSize := 48 ]
             doShow b
             where
                 commentLine :: Maybe Text -> Text
@@ -165,6 +161,8 @@ newResultButton gui = do
     boxPackStart layout icon  PackNatural 0
     boxPackStart layout label PackNatural 5
     widgetShow layout
+
+    widgetShow icon
 
     return $ RB button label icon
 
