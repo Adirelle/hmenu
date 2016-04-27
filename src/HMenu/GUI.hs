@@ -132,7 +132,7 @@ showResults gui entries = do
         doShow b = let w = bButton b in do
             widgetShow w
             p <- widgetGetParent w
-            unless (isJust p) $ boxPackStart (resultBox gui) w PackNatural 0
+            unless (isJust p) $ boxPackStart (resultBox gui) w PackGrow 0
 
         doHide :: ResultButton -> IO ()
         doHide b = let w = bButton b in do
