@@ -16,6 +16,7 @@ executable hmenu
   hs-source-dirs:      src
   main-is:             Main.hs
   other-modules:       Data.Locale,
+                       Data.BinaryRef,
                        HMenu.Provider.Path,
                        HMenu.Provider.Xdg,
                        HMenu.ScanDirs,
@@ -45,7 +46,8 @@ executable hmenu
                        binary         >= 0.7.5  && < 0.8,
                        monad-loops    >= 0.4.3  && < 0.5,
                        hashable       >= 1.2.4  && < 1.3,
-                       async          >= 2.1    && < 3
+                       async          >= 2.1    && < 3,
+                       unordered-containers
 
 source-repository head
   type:     git

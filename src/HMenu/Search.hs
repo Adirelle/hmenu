@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Search (
@@ -8,12 +8,14 @@ module HMenu.Search (
     tokenCount
 ) where
 
+import           ClassyPrelude       hiding (Index)
 import           Control.DeepSeq
 import           Control.Monad.State (State, execState, modify')
 import           Data.Binary
+import qualified Data.HashMap.Strict as HM
 import           Data.Text           (inits)
-import           ClassyPrelude             hiding (Index)
 
+import           Data.BinaryRef
 import           HMenu.Types
 
 type Token       = Text
@@ -26,12 +28,6 @@ newtype Index = Index Index_
                 deriving (Eq, Show, Generic)
 
 instance NFData Index
-
-instance (Hashable k, Eq k, Binary k, Binary v) => Binary (HashMap k v) where
-    put = put . mapToList
-    get = fmap mapFromList get
-
-instance Binary Index
 
 type Indexer = State Index_ ()
 
@@ -86,3 +82,38 @@ tokenize t = concatMap (nGrams 3 8) (words $ toCaseFold t)
 
 nGrams :: Int -> Int -> Text -> [Text]
 nGrams a b t = t : drop a (take (b+1) $ inits t)
+
+instance Binary Index where
+    put (Index i) = putWithRefs go
+        where
+            go :: PutRef Entry
+            go = do
+                lift (put $ HM.size i)
+                oforM_ (HM.toList i) putTokenPair
+            putTokenPair (t, es) = do
+                lift $ put t
+                lift (put $ HM.size es)
+                oforM_ (HM.toList es) putEntryPair
+            putEntryPair (e, w) = do
+                putRef e
+                lift $ put w
+    get = do
+        i <- getWithRefs go
+        return $ Index i
+        where
+            go :: GetRef Entry Index_
+            go = do
+                il <- lift get
+                ts <- replicateM il getTokenPair
+                return $ HM.fromList ts
+            getTokenPair :: GetRef Entry (Token, WeightMap Entry)
+            getTokenPair = do
+                t <- lift (get :: Get Token)
+                el <- lift get
+                es <- replicateM el getEntryPair
+                return (t, HM.fromList es)
+            getEntryPair :: GetRef Entry (Entry, Weight)
+            getEntryPair = do
+                e <- getRef
+                w <- lift get
+                return (e, w)
