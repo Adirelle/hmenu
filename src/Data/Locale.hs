@@ -1,29 +1,43 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-
+-- |
 module Data.Locale (
-    Locale(..),
+    Locale(Default),
     locale,
+    defaultLocale,
+    lookup,
     localeParser
 ) where
 
-import           ClassyPrelude
+import           ClassyPrelude        hiding (lookup)
 import           Control.DeepSeq
 import           Data.Attoparsec.Text
+import           Data.Hashable
 
-data Locale = Locale Text (Maybe Text) (Maybe Text) (Maybe Text)
-            | Default
+-- | A locale.
+data Locale = Locale -- ^ Locale specifier.
+                Text         -- ^ Lang.
+                (Maybe Text) -- ^ Optional country.
+                (Maybe Text) -- ^ Optional encoding.
+                (Maybe Text) -- ^ Optional modifier.
+            | Default -- ^ Empty locale specifier, e.g. use system locale.
             deriving (Ord, Eq, Show, Generic)
 
 instance NFData Locale
+instance Hashable Locale
 
-locale :: String -> Locale
+-- | Construct a Locale from a Text, call error on failure.
+locale :: Text -> Locale
 locale ""    = Default
 locale input =
-    case parseOnly (localeParser <* endOfInput) (pack input) of
+    case parseOnly (localeParser <* endOfInput) input of
         Right locale -> locale
         Left err     -> error err
 
+defaultLocale :: Locale
+defaultLocale = Default
+
+-- | An Attoparsec parser for locales.
 localeParser :: Parser Locale
 localeParser = do
     lang     <- identifier <?> "lang"
@@ -36,12 +50,13 @@ localeParser = do
 identifier :: Parser Text
 identifier = takeWhile1 (inClass "a-zA-Z0-9-") <?> "identifier"
 
-lookupOrder :: Locale -> [Locale]
-lookupOrder Default = [Default]
-lookupOrder (Locale l c _ m) = go l c m
+-- | lookup f l tries f with different variations of l until one yields a Just value, or returns Nothing.
+lookup :: (Locale -> Maybe a) -> Locale -> Maybe a
+lookup f Default = f Default
+lookup f (Locale l c _ m) = try l c m
     where
-        go l c m = Locale l c Nothing m : more l c m
-        more l c@(Just _) m@(Just _) = Locale l Nothing Nothing m : go l c Nothing
-        more l Nothing    m@(Just _) = go l Nothing Nothing
-        more l c@(Just _) Nothing    = go l Nothing Nothing
-        more _ _          _          = [Default]
+        try l c m = f (Locale l c Nothing m) <|> orElse l c m
+        orElse l c@(Just _) m@(Just _) = f (Locale l Nothing Nothing m) <|> try l c Nothing
+        orElse l Nothing    m@(Just _) = try l Nothing Nothing
+        orElse l c@(Just _) Nothing    = try l Nothing Nothing
+        orElse _ _          _          = f Default
