@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Xdg.Directories (
+module XDG.Directories (
     listDirectories,
     findDirectories,
     findFile,
@@ -14,7 +14,7 @@ import           System.Directory   (doesDirectoryExist, doesFileExist, getHomeD
 import           System.Environment
 
 data DirectoryType = DataHome | ConfigHome | CacheHome | RuntimeDir | DataDirs | ConfigDirs
-                    deriving (Show, Eq)
+                   deriving (Show, Eq)
 
 findFileWith :: DirectoryType -> (FilePath -> IO Bool) -> FilePath -> IO (Maybe FilePath)
 findFileWith dirType f name = do

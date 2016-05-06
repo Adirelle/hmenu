@@ -18,14 +18,16 @@ executable hmenu
   other-modules:       Data.Locale,
                        Data.BinaryRef,
                        HMenu.Provider.Path,
-                       HMenu.Provider.Xdg,
+                       HMenu.Provider.XDG,
                        HMenu.ScanDirs,
                        HMenu.Search,
                        HMenu.Types,
                        HMenu.GUI,
-                       Xdg.Directories,
-                       Xdg.Parser,
-                       Xdg.Types
+                       XDG.Directories,
+                       XDG.DesktopEntry.Parser,
+                       XDG.DesktopEntry.Analyser,
+                       XDG.DesktopEntry.Types,
+                       XDG.DesktopEntry
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
   build-depends:       base           == 4.8.*,

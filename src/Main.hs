@@ -2,14 +2,14 @@
 
 module Main where
 
+import           ClassyPrelude        hiding (Index)
 import           Graphics.UI.Gtk
-import           ClassyPrelude              hiding (Index)
 import           System.Posix.Signals
 
 import           HMenu.Cache
 import           HMenu.GUI
 import           HMenu.Provider.Path
-import           HMenu.Provider.Xdg
+import           HMenu.Provider.XDG
 import           HMenu.Search
 import           HMenu.Types
 

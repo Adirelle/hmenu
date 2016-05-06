@@ -1,9 +1,9 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Cache (setupCache) where
 
-import ClassyPrelude
+import           ClassyPrelude
 import           Control.Concurrent.Async
 import           Control.DeepSeq
 import           Data.Binary
@@ -11,7 +11,7 @@ import           Data.Hashable
 import           System.Directory
 import           System.FilePath
 
-import           Xdg.Directories
+import           XDG.Directories
 
 data CachedData a = CachedData Int a
     deriving (Eq, Show, Generic)
