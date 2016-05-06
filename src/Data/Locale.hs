@@ -21,12 +21,16 @@ data Locale = Locale -- ^ Locale specifier.
                 (Maybe Text) -- ^ Optional encoding.
                 (Maybe Text) -- ^ Optional modifier.
             | Default -- ^ Empty locale specifier, e.g. use system locale.
-            deriving (Ord, Eq, Show, Generic)
+            deriving (Ord, Eq, Generic)
 
 instance NFData Locale
 instance Hashable Locale
 instance IsString Locale where
     fromString s = either error id $ locale (pack s)
+
+instance Show Locale where
+    show (Locale l c e m) = show $ l ++ maybe "" ('_' `cons`) c ++ maybe "" ('.' `cons`) e ++ maybe "" ('@' `cons`) m
+    show Default          = show "C"
 
 -- | Construct a Locale from a Text, returning either an error String or a Locale.
 locale :: Text -> Either String Locale
