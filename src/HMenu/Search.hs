@@ -1,11 +1,13 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TypeFamilies      #-}
 
 module HMenu.Search (
     createIndex,
     search,
     Index,
-    tokenCount
+    tokenCount,
+    Indexable(..)
 ) where
 
 import           ClassyPrelude       hiding (Index)
@@ -16,22 +18,27 @@ import qualified Data.HashMap.Strict as HM
 import           Data.Text           (inits)
 
 import           Data.BinaryRef
-import           HMenu.Types
 
 type Token       = Text
 type Weight      = Double
 type WeightMap k = HashMap k Weight
 
-type Index_ = HashMap Token (WeightMap Entry)
+type Index_ a = HashMap Token (WeightMap a)
 
-newtype Index = Index Index_
+newtype Index a = Index (Index_ a)
                 deriving (Eq, Show, Generic)
 
-instance NFData Index
+instance NFData a => NFData (Index a)
 
-type Indexer = State Index_ ()
+class (Hashable a, Eq a) => Indexable a where
+    data IndexableField a
+    fieldWeight :: IndexableField a -> Weight
+    fieldValue :: IndexableField a -> a -> Maybe Text
+    fieldList :: [IndexableField a]
 
-createIndex :: [Entry] -> Index
+type Indexer a = State (Index_ a) ()
+
+createIndex :: Indexable a => [a] -> Index a
 createIndex entries =
     let rawIndex = execState (mapM_ indexEntry entries) mempty
         tokens = mapToList rawIndex
@@ -45,37 +52,33 @@ createIndex entries =
                 then Nothing
                 else Just (t, map (f *) m)
 
-tokenCount :: Index -> Int
+tokenCount :: Indexable a => Index a -> Int
 tokenCount (Index i) = length i
 
-search :: Index -> Text -> [Entry]
-
+search :: Indexable a => Index a -> Text -> [a]
 search (Index index) terms =
     let tokens  = tokenize terms
         matches = mapMaybe (`lookup` index) tokens
         pairs = unionsWith (+) matches
     in map fst $ sortOn (Down . snd) $ mapToList pairs
 
-indexEntry :: Entry -> Indexer
-indexEntry e = do
-    indexField 1.0 $ title e
-    forM_ (comment e) (indexField 0.8)
-    indexField 0.6 $ command e
+indexEntry :: Indexable a => a -> Indexer a
+indexEntry e =
+    forM_ fieldList $ \f ->
+        forM_ (fieldValue f e) $ \v ->
+            indexField (fieldWeight f) v
     where
-        indexField :: Weight -> Text -> Indexer
         indexField w t = do
             let ts = tokenize t
                 d =  fromIntegral $ length ts
             forM_ ts $ indexToken (w / d)
-        indexToken :: Weight -> Text -> Indexer
         indexToken t w = modify' $ addToken e t w
 
-addToken :: Entry -> Weight -> Token -> Index_ -> Index_
-addToken e w = alterMap (alterEntry w)
-    where
-        alterEntry :: Weight -> Maybe (WeightMap Entry) -> Maybe (WeightMap Entry)
-        alterEntry w Nothing  = Just $ singletonMap e w
-        alterEntry w (Just m) = Just $ insertWith (+) e w m
+addToken :: Indexable a => a -> Weight -> Token -> Index_ a -> Index_ a
+addToken e w = alterMap $ \m ->
+    Just $ case m of
+        Nothing -> singletonMap e w
+        Just m' -> insertWith (+) e w m'
 
 tokenize :: Text -> [Text]
 tokenize t = concatMap (nGrams 3 8) (words $ toCaseFold t)
@@ -83,10 +86,9 @@ tokenize t = concatMap (nGrams 3 8) (words $ toCaseFold t)
 nGrams :: Int -> Int -> Text -> [Text]
 nGrams a b t = t : drop a (take (b+1) $ inits t)
 
-instance Binary Index where
+instance (Indexable a, Binary a) => Binary (Index a) where
     put (Index i) = putWithRefs go
         where
-            go :: PutRef Entry
             go = do
                 lift (put $ HM.size i)
                 oforM_ (HM.toList i) putTokenPair
@@ -101,18 +103,15 @@ instance Binary Index where
         i <- getWithRefs go
         return $ Index i
         where
-            go :: GetRef Entry Index_
             go = do
                 il <- lift get
                 ts <- replicateM il getTokenPair
                 return $ HM.fromList ts
-            getTokenPair :: GetRef Entry (Token, WeightMap Entry)
             getTokenPair = do
                 t <- lift (get :: Get Token)
                 el <- lift get
                 es <- replicateM el getEntryPair
                 return (t, HM.fromList es)
-            getEntryPair :: GetRef Entry (Entry, Weight)
             getEntryPair = do
                 e <- getRef
                 w <- lift get
