@@ -57,10 +57,9 @@ identifier = takeWhile1 (inClass "a-zA-Z0-9-") <?> "identifier"
 -- | lookup f l tries f with different variations of l until one yields a Just value, or returns Nothing.
 lookup :: (Locale -> Maybe a) -> Locale -> Maybe a
 lookup f Default = f Default
-lookup f (Locale l c _ m) = try l c m
-    where
-        try l c m = f (Locale l c Nothing m) <|> orElse l c m
-        orElse l c@(Just _) m@(Just _) = f (Locale l Nothing Nothing m) <|> try l c Nothing
-        orElse l Nothing    m@(Just _) = try l Nothing Nothing
-        orElse l c@(Just _) Nothing    = try l Nothing Nothing
-        orElse _ _          _          = f Default
+lookup f (Locale l c _ m) =
+        f (Locale l c Nothing m)
+    <|> f (Locale l Nothing Nothing m)
+    <|> f (Locale l c Nothing Nothing)
+    <|> f (Locale l Nothing Nothing Nothing)
+    <|> f Default
