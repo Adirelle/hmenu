@@ -25,27 +25,27 @@ data Locale = Locale -- ^ Locale specifier.
 
 instance NFData Locale
 instance Hashable Locale
+instance IsString Locale where
+    fromString s = either error id $ locale (pack s)
 
--- | Construct a Locale from a Text, call error on failure.
-locale :: Text -> Locale
-locale ""    = Default
-locale input =
-    case parseOnly (localeParser <* endOfInput) input of
-        Right locale -> locale
-        Left err     -> error err
+-- | Construct a Locale from a Text, returning either an error String or a Locale.
+locale :: Text -> Either String Locale
+locale = parseOnly (localeParser <* endOfInput)
 
 defaultLocale :: Locale
 defaultLocale = Default
 
 -- | An Attoparsec parser for locales.
 localeParser :: Parser Locale
-localeParser = do
-    lang     <- identifier <?> "lang"
-    country  <- optional (char '_' *> identifier) <?> "country"
-    encoding <- optional (char '.' *> identifier) <?> "encoding"
-    modifier <- optional (char '@' *> identifier) <?> "modifier"
-    return $ Locale lang country encoding modifier
-    <?> "locale"
+localeParser = choice [ fullLocale, defaultLocale ] <?> "locale"
+    where
+        fullLocale = do
+            lang     <- identifier <?> "lang"
+            country  <- optional (char '_' *> identifier) <?> "country"
+            encoding <- optional (char '.' *> identifier) <?> "encoding"
+            modifier <- optional (char '@' *> identifier) <?> "modifier"
+            return $ Locale lang country encoding modifier
+        defaultLocale = string "C" *> return Default
 
 identifier :: Parser Text
 identifier = takeWhile1 (inClass "a-zA-Z0-9-") <?> "identifier"
