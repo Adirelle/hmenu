@@ -2,9 +2,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE TypeFamilies      #-}
 
-module HMenu.Types (
-    Entry(..)
-) where
+module HMenu.Types where
 
 import           ClassyPrelude
 import           Control.DeepSeq
@@ -15,10 +13,10 @@ import           GHC.Generics    (Generic)
 import           HMenu.Search
 
 data Entry = Entry {
-    command :: Text,
-    title   :: Text,
-    comment :: Maybe Text,
-    icon    :: Maybe Text
+    eCommand :: Text,
+    eTitle   :: Text,
+    eComment :: Maybe Text,
+    eIcon    :: Maybe Text
 } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Entry
@@ -33,8 +31,8 @@ instance Indexable Entry where
     fieldWeight Comment = 0.8
     fieldWeight Command = 0.6
 
-    fieldValue Title = Just . title
-    fieldValue Comment = comment
-    fieldValue Command = Just . command
+    fieldValue Title = Just . eTitle
+    fieldValue Comment = eComment
+    fieldValue Command = Just . eCommand
 
     fieldList = [Title, Comment, Command]

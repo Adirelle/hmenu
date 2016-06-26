@@ -33,9 +33,8 @@ listDesktopEntries = do
 
 readEntry :: Locale -> FilePath -> IO [Entry]
 readEntry l p = do
-    c <- DTI.readFile p
-    let r = analyse c
-    case r of
+    de <- readDesktopEntry l p
+    case de of
         Left e  -> do
             printf "Error in %s: %s\n" p e
             return []
@@ -46,7 +45,7 @@ convert l DesktopEntry { deName = n, deNoDisplay = False, deComment = cmt, deIco
     let n'   = fromMaybe cmd $ loc n
         cmt' = loc =<< cmt
         i'   = loc =<< i
-        e    = Entry { command = cmd, title = n', comment = cmt', icon = i' }
+        e    = Entry { eCommand = cmd, eTitle = n', eComment = cmt', eIcon = i' }
         es   = maybe [] (mapMaybe (convertAction n' i')) as
     in e : es
     where

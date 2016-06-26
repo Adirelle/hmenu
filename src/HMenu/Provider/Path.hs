@@ -21,8 +21,8 @@ createEntry filepath = do
     let packedPath = pack filepath
         name       = pack $ takeBaseName filepath
     return [Entry {
-                command = packedPath,
-                title   = name,
-                comment = Just packedPath,
-                icon    = Nothing
+                eCommand = packedPath,
+                eTitle   = name,
+                eComment = Just packedPath,
+                eIcon    = Nothing
            }]

@@ -1,22 +1,30 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module XDG.DesktopEntry.Analyser (
-    analyse
+    readDesktopEntry
 ) where
 
 import           ClassyPrelude              hiding (optional)
 import           Control.Monad.Trans.Reader
+import           Data.Attoparsec.Text       as A
 import qualified Data.HashMap.Strict        as HM
+import           Data.Text                  (strip)
+import qualified Data.Text.IO               as DTI
 
 import qualified Data.Locale                as L
-import           XDG.DesktopEntry.Parser
+import           XDG.DesktopEntry.Parser    as P
 import           XDG.DesktopEntry.Types
 
 type ErrorOr = Either String
 type GroupReader = ReaderT Values ErrorOr
 
+readDesktopEntry :: L.Locale -> FilePath -> IO (ErrorOr DesktopEntry)
+readDesktopEntry l p = do
+    c <- DTI.readFile p
+    return $ expandExecVars l p <$> analyse c
+
 analyse :: Text -> ErrorOr DesktopEntry
-analyse t = parse t >>= analyseMainGroup
+analyse t = P.parse t >>= analyseMainGroup
 
 analyseMainGroup :: Groups -> ErrorOr DesktopEntry
 analyseMainGroup g = withGroup g "Desktop Entry" $ do
@@ -77,3 +85,69 @@ required k = do
 
 boolean :: Text -> GroupReader Bool
 boolean t = fromMaybe False <$> optional t
+
+class ActionType a where
+    name :: L.Locale -> a -> Maybe Text
+    icon :: L.Locale -> a -> Maybe Text
+    exec :: a -> Maybe Text
+    withExec :: a -> Maybe Text -> a
+
+instance ActionType DesktopEntry where
+    name l de = getLocalized l $ deName de
+    icon l de = getLocalized l =<< deIcon de
+    exec DesktopEntry { sub = Application { appExec = e } } = e
+    exec _ = Nothing
+    withExec de@DesktopEntry { sub = app@Application {} } e = de { sub = app { appExec = e } }
+    withExec de _ = de
+
+instance ActionType Action where
+    name l a = getLocalized l $ aName a
+    icon l a = getLocalized l =<< aIcon a
+    exec = aExec
+    withExec a e = a { aExec = e }
+
+expandExecVars :: L.Locale -> FilePath -> DesktopEntry -> DesktopEntry
+expandExecVars l p de@DesktopEntry { sub = app@Application { appActions = as } } =
+    let de' = expandActionExec de
+        as' = fmap (map expandActionExec) as
+        app' = app { appActions = as' }
+    in de' { sub = app' }
+    where
+        expandActionExec :: ActionType a => a -> a
+        expandActionExec a =
+            let e = exec a
+                e' = fmap expand e
+            in withExec a e'
+            where
+                expand  = unwords . mapMaybe expandPart . splitArgs
+                expandPart "%%" = Just "%"
+                expandPart "%i" = (asText "--icon " ++) <$> icon l a
+                expandPart "%c" = name l a
+                expandPart "%k" = Just $ pack p
+                expandPart "%f" = Nothing
+                expandPart "%F" = Nothing
+                expandPart "%u" = Nothing
+                expandPart "%U" = Nothing
+                expandPart "%d" = Nothing
+                expandPart "%D" = Nothing
+                expandPart "%n" = Nothing
+                expandPart "%N" = Nothing
+                expandPart "%v" = Nothing
+                expandPart "%m" = Nothing
+                expandPart t = Just t
+expandExecVars _ _ de = trace "expandExecVars: no changes" de
+
+data APState = Plain | Quoted Char | Escape APState deriving (Show)
+
+splitArgs :: Text -> [Text]
+splitArgs = either error id . parseOnly args . strip
+    where
+        args = sepBy' arg (space >> skipSpace)
+        arg = scan Plain step
+        step (Escape p) _                         = Just p
+        step s          '\\'                      = Just $ Escape s
+        step (Quoted d) c    | d == c             = Just Plain
+        step Plain      '\''                      = Just $ Quoted '\''
+        step Plain      '"'                       = Just $ Quoted '"'
+        step Plain      c   | isHorizontalSpace c = Nothing
+        step s          _                         = Just s

@@ -4,8 +4,8 @@ module HMenu.ScanDirs (
     scanDirs
 ) where
 
+import           ClassyPrelude       hiding (Map)
 import           Control.Monad.State (StateT (..), execStateT, modify')
-import           ClassyPrelude             hiding (Map)
 import           System.Directory    (doesDirectoryExist, doesFileExist, getDirectoryContents)
 
 import           HMenu.Types

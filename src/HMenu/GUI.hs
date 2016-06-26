@@ -6,13 +6,13 @@ module HMenu.GUI (
     SearchHandler
 ) where
 
-import ClassyPrelude hiding (on)
+import           ClassyPrelude                 hiding (on)
 import           Control.Concurrent.Async
-import           Graphics.UI.Gtk
+import           Graphics.UI.Gtk               as G
 import qualified Graphics.UI.Gtk.General.Enums as E
 import           Graphics.UI.Gtk.Layout.Grid
 
-import qualified HMenu.Types                   as H
+import           HMenu.Types                   as H
 
 type ResultHandler = [H.Entry] -> IO ()
 type SearchHandler = ResultHandler -> Text -> IO ()
@@ -23,7 +23,7 @@ data ResultButton = RB { bButton :: Button
 
 data GUI = GUI { main        :: Window
                , layout      :: VBox
-               , input       :: Entry
+               , input       :: G.Entry
                , search      :: SearchHandler
                , resultBox   :: VBox
                , buttons     :: MVar [ResultButton]
@@ -59,7 +59,6 @@ newGUI search = do
     boxPackStart layout input PackNatural 0
 
     set main [ windowTitle           := asString "HMenu"
-             --, windowDecorated       := False
              , windowResizable       := False
              , windowHasResizeGrip   := False
              , windowTypeHint        := WindowTypeHintDialog
@@ -121,8 +120,8 @@ showResults gui entries = do
 
         updateButton :: H.Entry -> ResultButton -> IO ()
         updateButton e b = do
-            labelSetMarkup (bLabel b) $ "<b>" ++ H.title e ++ "</b>" ++ commentLine (H.comment e)
-            set (bIcon b) [ imageIconName  := fromMaybe "system-run" $ H.icon e
+            labelSetMarkup (bLabel b) $ "<b>" ++ eTitle e ++ "</b>" ++ commentLine (Just $ eCommand e)
+            set (bIcon b) [ imageIconName  := fromMaybe "system-run" $ eIcon e
                           , imagePixelSize := 48 ]
             doShow b
             where

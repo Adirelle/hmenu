@@ -19,7 +19,6 @@ main = do
     runGUI instalSignalHandlers (handler getIndex)
     where
         handler :: IO (Index Entry) -> ResultHandler -> Text -> IO ()
-        handler _ _ t | trace ("Searching for " ++ show t) False = error "Shouldn't happen"
         handler getIndex callback text = do
             index <- getIndex
             let results = if null text then [] else take 10 $ search index text
