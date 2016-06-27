@@ -12,6 +12,7 @@ import           Graphics.UI.Gtk               as G
 import qualified Graphics.UI.Gtk.General.Enums as E
 import           Graphics.UI.Gtk.Layout.Grid
 
+import           HMenu.Command                 (commandLine)
 import           HMenu.Types                   as H
 
 type ResultHandler = [H.Entry] -> IO ()
@@ -120,7 +121,7 @@ showResults gui entries = do
 
         updateButton :: H.Entry -> ResultButton -> IO ()
         updateButton e b = do
-            labelSetMarkup (bLabel b) $ "<b>" ++ eTitle e ++ "</b>" ++ commentLine (Just $ eCommand e)
+            labelSetMarkup (bLabel b) $ "<b>" ++ eTitle e ++ "</b>" ++ commentLine (Just $ commandLine $ eCommand e)
             set (bIcon b) [ imageIconName  := fromMaybe "system-run" $ eIcon e
                           , imagePixelSize := 48 ]
             doShow b

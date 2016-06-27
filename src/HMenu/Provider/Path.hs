@@ -8,8 +8,10 @@ import           ClassyPrelude
 import           System.Directory
 import           System.FilePath
 
+import           HMenu.Command
 import           HMenu.ScanDirs
 import           HMenu.Types
+
 
 listPathEntries :: IO [Entry]
 listPathEntries =
@@ -21,7 +23,7 @@ createEntry filepath = do
     let packedPath = pack filepath
         name       = pack $ takeBaseName filepath
     return [Entry {
-                eCommand = packedPath,
+                eCommand = ShellCommand packedPath,
                 eTitle   = name,
                 eComment = Just packedPath,
                 eIcon    = Nothing

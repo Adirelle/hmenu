@@ -10,10 +10,11 @@ import           Data.Binary
 import           Data.Text       (Text, unpack)
 import           GHC.Generics    (Generic)
 
+import           HMenu.Command
 import           HMenu.Search
 
 data Entry = Entry {
-    eCommand :: Text,
+    eCommand :: Command,
     eTitle   :: Text,
     eComment :: Maybe Text,
     eIcon    :: Maybe Text
@@ -33,6 +34,6 @@ instance Indexable Entry where
 
     fieldValue Title = Just . eTitle
     fieldValue Comment = eComment
-    fieldValue Command = Just . eCommand
+    fieldValue Command = Just . commandLine . eCommand
 
     fieldList = [Title, Comment, Command]

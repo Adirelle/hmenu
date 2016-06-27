@@ -12,6 +12,7 @@ import           System.FilePath
 import           Text.Printf
 
 import           Data.Locale
+import           HMenu.Command
 import           HMenu.ScanDirs
 import           HMenu.Types
 import           XDG.DesktopEntry
@@ -41,11 +42,21 @@ readEntry l p = do
         Right e -> return $ convert l e
 
 convert :: Locale -> DesktopEntry -> [Entry]
-convert l DesktopEntry { deName = n, deNoDisplay = False, deComment = cmt, deIcon = i, deHidden = False, sub = Application { appExec = Just cmd, appActions = as }} =
+convert l DesktopEntry { deName = n
+                       , deNoDisplay = False
+                       , deComment = cmt
+                       , deIcon = i
+                       , deHidden = False
+                       , sub = Application { appExec = Just cmd
+                                           , appActions = as
+                                           , appTerminal = t
+                                           }
+                       } =
     let n'   = fromMaybe cmd $ loc n
         cmt' = loc =<< cmt
         i'   = loc =<< i
-        e    = Entry { eCommand = cmd, eTitle = n', eComment = cmt', eIcon = i' }
+        cmd' = createCommand t cmd
+        e    = Entry { eCommand = cmd', eTitle = n', eComment = cmt', eIcon = i' }
         es   = maybe [] (mapMaybe (convertAction n' i')) as
     in e : es
     where
@@ -53,8 +64,13 @@ convert l DesktopEntry { deName = n, deNoDisplay = False, deComment = cmt, deIco
         convertAction n' i' (Action n i (Just cmd)) =
             let n''    = fromMaybe cmd (loc n)
                 i''    = (loc =<< i) <|> i'
-            in Just $ Entry cmd n'' (Just n') i''
+                cmd'   = createCommand t cmd
+            in Just $ Entry cmd' n'' (Just n') i''
         convertAction _ _ _ = Nothing
         loc :: Localized a -> Maybe a
         loc = getLocalized l
+        createCommand :: Bool -> Text -> Command
+        createCommand True  = ShellCommand
+        createCommand False = GraphicalCommand
+
 convert _ _ = []
