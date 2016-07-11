@@ -41,7 +41,7 @@ toGraphical (ShellCommand c) = do
         Just t' -> return (t', ["-e", c])
 toGraphical (GraphicalCommand c) = do
     s <- findShell
-    return (s, ["-s", c])
+    return (s, ["-c", c])
 
 findShell :: IO Text
 findShell = do
@@ -60,18 +60,10 @@ findTerminal = do
         firstExec :: [Text] -> IO (Maybe Text)
         firstExec [] = return Nothing
         firstExec (f:fs) = do
-            ex <- isExecutable (unpack f)
-            if ex then
-                return $ Just f
-            else
-                firstExec fs
-        isExecutable f = do
-            et <- doesFileExist f
-            if et then do
-                p <- getPermissions f
-                return $ executable p
-            else
-                return False
+            ex <- findExecutable $ unpack f
+            case ex of
+                Nothing -> firstExec fs
+                Just f' -> return $ Just (pack f')
 
 defaultTerminals :: [Text]
 defaultTerminals = [ "x-terminal-emulator"
