@@ -36,13 +36,14 @@ data ResultButton = RB { bButton :: Button
                        , bIcon   :: Image
                        , bCmdVar :: MVar Command }
 
-runGUI :: (Window -> IO ()) -> SearchHandler -> IO ()
+runGUI :: (Window -> IO ()) -> SearchHandler -> IO (Maybe Command)
 runGUI setup search = do
     initGUI
     timeoutAddFull (yieldThread >> return True) priorityDefaultIdle 100
     gui <- newGUI search
     setup $ main gui
     mainGUI
+    readMVar (selection gui)
 
 newGUI :: SearchHandler -> IO GUI
 newGUI search = do
@@ -55,8 +56,9 @@ newGUI search = do
     timer       <- newMVar asyncNoop
     iconSGroup  <- sizeGroupNew SizeGroupHorizontal
     labelSGroup <- sizeGroupNew SizeGroupHorizontal
+    selection   <- newMVar Nothing
 
-    let gui = GUI main layout input search resultBox buttons timer iconSGroup labelSGroup
+    let gui = GUI main layout input search resultBox buttons timer iconSGroup labelSGroup selection
 
     sizeGroupSetIgnoreHidden iconSGroup True
     sizeGroupSetIgnoreHidden labelSGroup True
