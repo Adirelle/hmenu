@@ -33,7 +33,7 @@ prepareIndex = do
 
 instalSignalHandlers :: G.Window -> IO ()
 instalSignalHandlers main = do
-    let byeBye = Catch $ G.widgetDestroy main
-    _ <- installHandler keyboardSignal byeBye Nothing
-    _ <- installHandler softwareTermination byeBye Nothing
+    let handler = Catch G.mainQuit
+    installHandler keyboardSignal handler Nothing
+    installHandler softwareTermination handler Nothing
     return ()
