@@ -7,6 +7,7 @@ import qualified Graphics.UI.Gtk      as G
 import           System.Posix.Signals
 
 import           HMenu.Cache
+import           HMenu.Command
 import           HMenu.GUI
 import           HMenu.Provider.Path
 import           HMenu.Provider.XDG
@@ -16,7 +17,8 @@ import           HMenu.Types
 main :: IO ()
 main = do
     getIndex <- prepareIndex
-    runGUI instalSignalHandlers (handler getIndex)
+    c <- runGUI instalSignalHandlers (handler getIndex)
+    maybe (putStrLn "Do nothing") execute c
     where
         handler :: IO (Index Entry) -> ResultHandler -> Text -> IO ()
         handler getIndex callback text = do

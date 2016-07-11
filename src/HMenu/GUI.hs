@@ -100,6 +100,7 @@ handleKeyPress gui =
                 entrySetText (input gui) $ asText ""
                 showResults gui []
 
+handleChange :: GUI -> IO ()
 handleChange gui = liftIO $ modifyMVar_ (timer gui) restartTimer
     where
         restartTimer prev = do
@@ -160,7 +161,14 @@ newResultButton gui = do
 
     widgetShow icon
 
+    button `on` buttonActivated $ select (selection gui) entryVar
+
     return $ RB button label icon entryVar
+
+select s b = liftIO $ do
+    c <- tryReadMVar b
+    swapMVar s c
+    mainQuit
 
 setEntry :: BoxClass a => a -> ResultButton -> H.Entry -> IO ()
 setEntry cnt (RB w l i v) (H.Entry c t _ ic) = do
