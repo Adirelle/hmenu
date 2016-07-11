@@ -8,19 +8,16 @@ module HMenu.GUI (
 
 import           ClassyPrelude                 hiding (on)
 import           Control.Concurrent.Async
+import           Control.Monad                 (zipWithM_)
 import           Graphics.UI.Gtk               as G
 import qualified Graphics.UI.Gtk.General.Enums as E
 import           Graphics.UI.Gtk.Layout.Grid
 
-import           HMenu.Command                 (commandLine)
+import           HMenu.Command                 (Command, commandLine)
 import           HMenu.Types                   as H
 
 type ResultHandler = [H.Entry] -> IO ()
 type SearchHandler = ResultHandler -> Text -> IO ()
-
-data ResultButton = RB { bButton :: Button
-                       , bLabel  :: Label
-                       , bIcon   :: Image }
 
 data GUI = GUI { main        :: Window
                , layout      :: VBox
@@ -30,7 +27,14 @@ data GUI = GUI { main        :: Window
                , buttons     :: MVar [ResultButton]
                , timer       :: MVar (Async ())
                , iconSGroup  :: SizeGroup
-               , labelSGroup :: SizeGroup }
+               , labelSGroup :: SizeGroup
+               , selection   :: MVar (Maybe Command)
+               }
+
+data ResultButton = RB { bButton :: Button
+                       , bLabel  :: Label
+                       , bIcon   :: Image
+                       , bCmdVar :: MVar Command }
 
 runGUI :: (Window -> IO ()) -> SearchHandler -> IO ()
 runGUI setup search = do
@@ -94,60 +98,48 @@ handleKeyPress gui =
                 entrySetText (input gui) $ asText ""
                 showResults gui []
 
+handleChange gui = liftIO $ modifyMVar_ (timer gui) restartTimer
+    where
+        restartTimer prev = do
+            cancel prev
+            async $ waitAndSearch (input gui) (search gui) (showResults gui)
+        waitAndSearch input search showResults = do
+            threadDelay 500000
+            text <- entryGetText input
+            if null text then
+                showResults []
+            else
+                search showResults text
+
 showResults :: GUI -> [H.Entry] -> IO ()
-showResults gui [] = do
-    let b = resultBox gui
-    p <- widgetGetParent b
-    when (isJust p) $ containerRemove (layout gui) b
-    widgetHide b
-showResults gui entries = do
-    let b = resultBox gui
-    modifyMVar_ (buttons gui) $ updateButtons entries
-    boxPackStart (layout gui) b PackNatural 0
-    widgetShow b
+showResults gui [] = hideAndOrphan $ resultBox gui
+showResults gui@GUI { layout = l , resultBox = box, buttons = bs } es = do
+    modifyMVar_ bs $ updateButtons es
+    showAndPack box l PackNatural
     where
         updateButtons :: [H.Entry] -> [ResultButton] -> IO [ResultButton]
-        updateButtons [] [] = return []
-        updateButtons [] bs = do
-            forM_ bs doHide
-            return bs
-        updateButtons e [] = do
-            b <- newResultButton gui
-            updateButtons e [b]
-        updateButtons (e:es) (b:bs) = do
-            updateButton e b
-            bs' <- updateButtons es bs
-            return $ b : bs'
-
-        updateButton :: H.Entry -> ResultButton -> IO ()
-        updateButton e b = do
-            labelSetMarkup (bLabel b) $ "<b>" ++ eTitle e ++ "</b>" ++ commentLine (Just $ commandLine $ eCommand e)
-            set (bIcon b) [ imageIconName  := fromMaybe "system-run" $ eIcon e
-                          , imagePixelSize := 48 ]
-            doShow b
+        updateButtons es bs = do
+            bs' <- case compare le lb of
+                EQ -> return bs
+                LT -> do
+                    mapM_ clearEntry $ drop le bs
+                    return bs
+                GT -> do
+                    bs' <- replicateM (le-lb) (newResultButton gui)
+                    return $ bs ++ bs'
+            zipWithM_ (setEntry box) bs' es
+            return bs'
             where
-                commentLine :: Maybe Text -> Text
-                commentLine Nothing   = ""
-                commentLine (Just c ) = "\n<span size=\"smaller\">" ++ c ++ "</span>"
-
-        doShow :: ResultButton -> IO ()
-        doShow b = let w = bButton b in do
-            widgetShow w
-            p <- widgetGetParent w
-            unless (isJust p) $ boxPackStart (resultBox gui) w PackGrow 0
-
-        doHide :: ResultButton -> IO ()
-        doHide b = let w = bButton b in do
-            widgetHide w
-            p <- widgetGetParent w
-            when (isJust p) $ containerRemove (resultBox gui) w
+                le = length es
+                lb = length bs
 
 newResultButton :: GUI -> IO ResultButton
 newResultButton gui = do
-    button  <- buttonNew
-    label   <- labelNew (Nothing :: Maybe Text)
-    icon    <- imageNew
-    layout  <- hBoxNew False 0
+    button   <- buttonNew
+    label    <- labelNew (Nothing :: Maybe Text)
+    icon     <- imageNew
+    layout   <- hBoxNew False 0
+    entryVar <- newEmptyMVar
 
     sizeGroupAddWidget (iconSGroup gui)  icon
     sizeGroupAddWidget (labelSGroup gui) label
@@ -166,17 +158,37 @@ newResultButton gui = do
 
     widgetShow icon
 
-    return $ RB button label icon
+    return $ RB button label icon entryVar
 
-handleChange gui = liftIO $ modifyMVar_ (timer gui) restartTimer
-    where
-        restartTimer prev = do
-            cancel prev
-            async $ waitAndSearch (input gui) (search gui) (showResults gui)
-        waitAndSearch input search showResults = do
-            threadDelay 500000
-            text <- entryGetText input
-            if null text then
-                showResults []
-            else
-                search showResults text
+setEntry :: BoxClass a => a -> ResultButton -> H.Entry -> IO ()
+setEntry cnt (RB w l i v) (H.Entry c t _ ic) = do
+    labelSetMarkup l $ "<b>" ++ t ++ "</b>\n<span size=\"smaller\">" ++ commandLine c ++ "</span>"
+    set i [ imageIconName := fromMaybe "system-run" ic , imagePixelSize := 48 ]
+
+    tryTakeMVar v
+    putMVar v c
+
+    showAndPack w cnt PackGrow
+
+clearEntry :: ResultButton -> IO ()
+clearEntry (RB w _ _ v)  = do
+    tryTakeMVar v
+    hideAndOrphan w
+
+showAndPack :: (WidgetClass a, BoxClass b) => a -> b -> Packing -> IO ()
+showAndPack w c p = do
+    orphan w
+    widgetShow w
+    boxPackStart c w p 0
+
+hideAndOrphan :: WidgetClass a => a -> IO ()
+hideAndOrphan w = do
+    widgetHide w
+    orphan w
+
+orphan :: WidgetClass a => a -> IO ()
+orphan w = do
+    p <- widgetGetParent w
+    case p of
+        Just p' -> containerRemove (castToContainer p') w
+        Nothing -> return ()
