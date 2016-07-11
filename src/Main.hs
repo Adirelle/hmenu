@@ -18,13 +18,13 @@ main :: IO ()
 main = do
     getIndex <- prepareIndex
     c <- runGUI instalSignalHandlers (handler getIndex)
-    maybe (putStrLn "Do nothing") execute c
+    maybe (return ()) execute c
     where
         handler :: IO (Index Entry) -> ResultHandler -> Text -> IO ()
         handler getIndex callback text = do
             index <- getIndex
             let results = if null text then [] else take 10 $ search index text
-            callback $ trace ("Found " ++ show (length results) ++ " results") results
+            callback $ results
 
 prepareIndex :: IO (IO (Index Entry))
 prepareIndex = do
