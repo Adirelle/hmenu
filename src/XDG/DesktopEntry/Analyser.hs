@@ -108,34 +108,32 @@ instance ActionType Action where
 
 expandExecVars :: L.Locale -> FilePath -> DesktopEntry -> DesktopEntry
 expandExecVars l p de@DesktopEntry { sub = app@Application { appActions = as } } =
-    let de' = expandActionExec de
-        as' = fmap (map expandActionExec) as
-        app' = app { appActions = as' }
-    in de' { sub = app' }
+    let as' = fmap (map $ expandActionExec l p) as
+        de' = de { sub = app { appActions = as' } }
+    in expandActionExec l p de'
+
+expandActionExec :: ActionType a => L.Locale -> FilePath -> a -> a
+expandActionExec l p a =
+    withExec a $ expand <$> exec a
     where
-        expandActionExec :: ActionType a => a -> a
-        expandActionExec a =
-            let e = exec a
-                e' = fmap expand e
-            in withExec a e'
-            where
-                expand  = unwords . mapMaybe expandPart . splitArgs
-                expandPart "%%" = Just "%"
-                expandPart "%i" = (asText "--icon " ++) <$> icon l a
-                expandPart "%c" = name l a
-                expandPart "%k" = Just $ pack p
-                expandPart "%f" = Nothing
-                expandPart "%F" = Nothing
-                expandPart "%u" = Nothing
-                expandPart "%U" = Nothing
-                expandPart "%d" = Nothing
-                expandPart "%D" = Nothing
-                expandPart "%n" = Nothing
-                expandPart "%N" = Nothing
-                expandPart "%v" = Nothing
-                expandPart "%m" = Nothing
-                expandPart t = Just t
-expandExecVars _ _ de = trace "expandExecVars: no changes" de
+        expand :: Text -> Text
+        expand = unwords . mapMaybe expandPart . splitArgs
+        expandPart :: Text -> Maybe Text
+        expandPart "%%" = Just "%"
+        expandPart "%i" = (asText "--icon " ++) <$> icon l a
+        expandPart "%c" = name l a
+        expandPart "%k" = Just $ pack p
+        expandPart "%f" = Nothing
+        expandPart "%F" = Nothing
+        expandPart "%u" = Nothing
+        expandPart "%U" = Nothing
+        expandPart "%d" = Nothing
+        expandPart "%D" = Nothing
+        expandPart "%n" = Nothing
+        expandPart "%N" = Nothing
+        expandPart "%v" = Nothing
+        expandPart "%m" = Nothing
+        expandPart t = Just t
 
 data APState = Plain | Quoted Char | Escape APState deriving (Show)
 
