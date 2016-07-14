@@ -7,9 +7,11 @@ module XDG.DesktopEntry.Analyser (
 import           ClassyPrelude              hiding (optional)
 import           Control.Monad.Trans.Reader
 import           Data.Attoparsec.Text       as A
+import qualified Data.ByteString            as B
 import qualified Data.HashMap.Strict        as HM
 import           Data.Text                  (strip)
-import qualified Data.Text.IO               as DTI
+import           Data.Text.Encoding
+import           Data.Text.Encoding.Error
 
 import qualified Data.Locale                as L
 import           XDG.DesktopEntry.Parser    as P
@@ -20,8 +22,10 @@ type GroupReader = ReaderT Values ErrorOr
 
 readDesktopEntry :: L.Locale -> FilePath -> IO (ErrorOr DesktopEntry)
 readDesktopEntry l p = do
-    c <- DTI.readFile p
-    return $ expandExecVars l p <$> analyse c
+    x <- B.readFile p
+    return $ case decodeUtf8' x of
+        Right c                 -> expandExecVars l p <$> analyse c
+        Left  (DecodeError e _) -> Left e
 
 analyse :: Text -> ErrorOr DesktopEntry
 analyse t = P.parse t >>= analyseMainGroup
