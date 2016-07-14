@@ -1,0 +1,46 @@
+sudo: false
+
+language: c
+
+addons:
+    apt:
+        sources:
+            - hvr-ghc
+        packages:
+            - ghc-7.10.2
+            - libgtk-3-dev
+
+before_install:
+    - mkdir -p ~/.local/bin
+    - export PATH=/opt/ghc/7.10.2/bin:$HOME/.local/bin:$PATH
+    - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    - chmod a+x ~/.local/bin/stack
+
+install:
+    - "./travis_long stack +RTS -N2 -RTS setup --no-terminal"
+    - "./travis_long stack +RTS -N2 -RTS build --no-terminal --only-dependencies"
+
+script:
+    - git --version
+    - stack --version
+    - "./travis_long stack +RTS -N2 -RTS build --no-terminal"
+cache:
+    directories:
+        - "~/.stack"
+        - "~/.stack-work"
+        - "~/.local"
+    apt: true
+
+before_deploy:
+    - mkdir -p build
+    - cp $(stack path --local-install-root)/bin/hmenu build/
+
+deploy:
+    provider: releases
+    api_key:
+        secure: AAofSku87GTUVQjJncyreeDM5jhv7uUMevtLqy3Ut6Euap3JejAzepQxpstlpmRdzv6eyDoHvKuyN7mJ72PDparl44UXqYF/5fzHmNWMtk3u2z8CvDzNFZ19TE5aTwsrqzuej20RHNvyZtuV4frO+WsrdXgqrP1C8BoXizNOQFgmVUC3vDEQ8jsXb80Bv4kGZIhotzC95he5PhbDV8nagNF0BvVug8BUrEhFunplaDe5UQAhNTjfoawObGnYP31RKwSiMM34LIldtb3KTtXVl6/dHOYm8LOITSGhx7VLML6S4x2+rS1j12bHiUXCmtnzJFnB6VFemYtPJ/fBlmnOGe/9BTCvpUgLeG17tQTszSE/YbImPnjwhYeIrbtCYcfN6GMzIgB7aBh1YUWIE2rFn/HsZh2gnrx0Zr6ZN6mlUXI7EuQ7Xv+Su/oV+alnlQH8LuJSxGsCqgQwVLTEnHFbicwn6Ollb+UWsmdXPEpnJhcunmL3mUka+m4BPSsqwRpafBa3jQGRcQg1sqTlXqvH8p21TyhctxmdzydoGD9RhiD5zvXmEO7A9aKyIwAfVlHgpMnJEdbesRHjW5EMRmBrZCMUVipI4VDSK6YyXNKVuzVQPiNVUiHSkwxqQHn3XG+ahfafq5mcgwWG6SvvhKGM+IAw5bESMIoRdU5gHpghgWc=
+    file: "build/hmenu"
+    skip_cleanup: true
+    overwrite: true
+    on:
+        tags: true

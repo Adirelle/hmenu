@@ -23,6 +23,8 @@ executable hmenu
                        HMenu.Search,
                        HMenu.Types,
                        HMenu.GUI,
+                       HMenu.Command,
+                       HMenu.Cache,
                        XDG.Directories,
                        XDG.DesktopEntry.Parser,
                        XDG.DesktopEntry.Analyser,
