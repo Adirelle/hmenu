@@ -1,22 +1,28 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Provider.Path (
-    listPathEntries
+    pathProvider
 ) where
 
 import           ClassyPrelude
+import           Data.Hashable
 import           System.Directory
 import           System.FilePath
 
 import           HMenu.Command
+import           HMenu.Provider.Types
 import           HMenu.ScanDirs
 import           HMenu.Types
 
+pathProvider :: IO EntryProvider
+pathProvider = do
+    dirs <- filterM doesDirectoryExist =<< getSearchPath
+    fileBasedProvider dirs isExecutable hashFilePaths createEntry
+    where
+        isExecutable path = executable <$> getPermissions path
 
-listPathEntries :: IO [Entry]
-listPathEntries =
-    getSearchPath >>= filterM doesDirectoryExist >>= scanDirs isExecutable createEntry
-    where isExecutable path = executable <$> getPermissions path
+hashFilePaths :: [FilePath] -> IO Int
+hashFilePaths ps = return $ foldr (flip hashWithSalt) 0 ps
 
 createEntry :: FilePath -> IO [Entry]
 createEntry filepath = do

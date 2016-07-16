@@ -10,16 +10,10 @@ import           System.Directory    (doesDirectoryExist, doesFileExist, getDire
 
 import           HMenu.Types
 
-scanDirs :: (FilePath -> IO Bool) -> (FilePath -> IO [Entry]) -> [FilePath] -> IO [Entry]
-scanDirs fileFilter converter dirs = do
-    files <- listFiles fileFilter dirs
-    entries <- mapM converter files
-    return $ concat entries
-
 type FileMap = HashMap FilePath FilePath
 
-listFiles :: (FilePath -> IO Bool) -> [FilePath] -> IO [FilePath]
-listFiles fileFilter dirs = do
+scanDirs :: (FilePath -> IO Bool) -> [FilePath] -> IO [FilePath]
+scanDirs fileFilter dirs = do
     files <- execStateT go mempty
     return $ toList files
     where

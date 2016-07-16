@@ -9,8 +9,7 @@ import           System.Posix.Signals
 import           HMenu.Cache
 import           HMenu.Command
 import           HMenu.GUI
-import           HMenu.Provider.Path
-import           HMenu.Provider.XDG
+import           HMenu.Provider
 import           HMenu.Search
 import           HMenu.Types
 

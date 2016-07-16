@@ -1,39 +1,59 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module HMenu.Provider.XDG (
-    listDesktopEntries
+    xdgProvider
 ) where
 
 import           ClassyPrelude
-import           Data.Text          (splitOn)
-import qualified Data.Text.IO       as DTI
+import           Data.Hashable
+import           Data.Text            (splitOn)
+import qualified Data.Text.IO         as DTI
+import           System.Directory     (getModificationTime)
 import           System.Environment
 import           System.FilePath
+import           System.IO            (IOMode (ReadMode), hFileSize, withFile)
 import           Text.Printf
 
 import           Data.Locale
 import           HMenu.Command
+import           HMenu.Provider.Types
 import           HMenu.ScanDirs
 import           HMenu.Types
 import           XDG.DesktopEntry
 import           XDG.Directories
 
-listDesktopEntries :: IO [Entry]
-listDesktopEntries = do
-    directories <- findDirectories DataDirs "applications"
-    lang <- resolveLocale
-    let l = either (const Default) id $ locale $ maybe "" pack lang
-    scanDirs isDesktopFile (readEntry l) directories
+xdgProvider :: IO EntryProvider
+xdgProvider = do
+    dirs <- findDirectories DataDirs "applications"
+    l <- messageLocale
+    let converter = readDesktopFile l
+    fileBasedProvider dirs isDesktopFile hashDesktopFiles converter
     where
         isDesktopFile = return . (".desktop" ==) . takeExtension
-        resolveLocale = do
-            a <- lookupEnv "LC_MESSAGES"
-            b <- lookupEnv "LC_ALL"
-            c <- lookupEnv "LANG"
-            return $ a <|> b <|> c <|> Just "C"
 
-readEntry :: Locale -> FilePath -> IO [Entry]
-readEntry l p = do
+messageLocale :: IO Locale
+messageLocale = do
+    a <- lookupEnv "LC_MESSAGES"
+    b <- lookupEnv "LC_ALL"
+    c <- lookupEnv "LANG"
+    return $ case a <|> b <|> c of
+        Nothing -> Default
+        Just s  -> case locale $ pack s of
+            Left _  -> Default
+            Right l -> l
+
+hashDesktopFiles :: [FilePath] -> IO Int
+hashDesktopFiles = foldM go 0
+    where
+        go x f = do
+            m <- hashableDateTime <$> getModificationTime f
+            s <- withFile f ReadMode hFileSize
+            return (x `hashWithSalt` m `hashWithSalt` s)
+        hashableDateTime :: UTCTime -> String
+        hashableDateTime = formatTime defaultTimeLocale "%s"
+
+readDesktopFile :: Locale -> FilePath -> IO [Entry]
+readDesktopFile l p = do
     de <- readDesktopEntry l p
     case de of
         Left e  -> do
