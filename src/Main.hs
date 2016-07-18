@@ -17,8 +17,9 @@ import           HMenu.Types
 
 main :: IO ()
 main = do
-    s <- initSearchEngine
+    (s, w) <- initSearchEngine
     c <- runGUI instalSignalHandlers s
+    w
     maybe (return ()) execute c
 
 instalSignalHandlers :: G.Window -> IO ()
@@ -28,9 +29,10 @@ instalSignalHandlers main = do
     installHandler softwareTermination handler Nothing
     return ()
 
-initSearchEngine :: IO SearchHandler
+initSearchEngine :: IO (SearchHandler, IO ())
 initSearchEngine = do
     v <- newEmptyMVar
+    v2 <- newEmptyMVar
     f <- cacheFilePath "index"
     forkIO $ do
         x <- xdgProvider
@@ -38,19 +40,17 @@ initSearchEngine = do
         let ps = metaProvider [x, p]
             h  = toHash ps
         c <- readCache f
-        i <- case c of
-            Just (h', i) | h' == h -> return i
-            _ -> newIndex f h ps
-        i `deepseq` putMVar v i
-    return $ handler v
+        case c of
+            Just (h', i) | h' == h -> i `deepseq` putMVar v i
+            _                      -> do
+                                        es <- toEntries ps
+                                        let i = createIndex es
+                                        i `deepseq` putMVar v i
+                                        writeCache f (h, i)
+        putMVar v2 ()
+    return (handler v, void $ readMVar v2)
     where
         handler :: MVar (Index Entry) -> ResultHandler -> Text -> IO ()
         handler v h t = do
             i <- readMVar v
             h $ search i t
-        newIndex :: FilePath -> Hash -> EntryProvider -> IO (Index Entry)
-        newIndex f h ps = do
-            es <- toEntries ps
-            let i = createIndex es
-            writeCache f (h, i)
-            return i
