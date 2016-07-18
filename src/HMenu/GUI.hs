@@ -7,7 +7,6 @@ module HMenu.GUI (
 ) where
 
 import           ClassyPrelude                 hiding (on)
-import           Control.Concurrent.Async
 import           Control.Monad                 (zipWithM_)
 import           Graphics.UI.Gtk               as G
 import qualified Graphics.UI.Gtk.General.Enums as E
@@ -25,7 +24,7 @@ data GUI = GUI { main        :: Window
                , search      :: SearchHandler
                , resultBox   :: VBox
                , buttons     :: MVar [ResultButton]
-               , timer       :: MVar (Async ())
+               , timer       :: MVar (Maybe HandlerId)
                , iconSGroup  :: SizeGroup
                , labelSGroup :: SizeGroup
                , selection   :: MVar (Maybe Command)
@@ -52,8 +51,7 @@ newGUI search = do
     input       <- entryNew
     resultBox   <- vBoxNew True 0
     buttons     <- newMVar []
-    asyncNoop   <- async $ return ()
-    timer       <- newMVar asyncNoop
+    timer       <- newMVar Nothing
     iconSGroup  <- sizeGroupNew SizeGroupHorizontal
     labelSGroup <- sizeGroupNew SizeGroupHorizontal
     selection   <- newMVar Nothing
@@ -101,18 +99,17 @@ handleKeyPress gui =
                 showResults gui []
 
 handleChange :: GUI -> IO ()
-handleChange gui = liftIO $ modifyMVar_ (timer gui) restartTimer
+handleChange gui@GUI { timer = t, input = i, search = search } =
+    liftIO $ modifyMVar_ t restart
     where
-        restartTimer prev = do
-            cancel prev
-            async $ waitAndSearch (input gui) (search gui) (showResults gui)
-        waitAndSearch input search showResults = do
-            threadDelay 500000
-            text <- entryGetText input
-            if null text then
-                showResults []
-            else
-                search showResults text
+        restart (Just h) = timeoutRemove h >> start
+        restart Nothing  = start
+        start = Just <$> timeoutAdd doSearch 500
+        doSearch = do
+            t <- entryGetText i
+            search show t
+            return False
+        show = showResults gui
 
 showResults :: GUI -> [H.Entry] -> IO ()
 showResults gui [] = hideAndOrphan $ resultBox gui
