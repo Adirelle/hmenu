@@ -56,6 +56,7 @@ tokenCount :: Indexable a => Index a -> Int
 tokenCount (Index i) = length i
 
 search :: Indexable a => Index a -> Text -> [a]
+search _             terms | null terms = []
 search (Index index) terms =
     let tokens  = tokenize terms
         matches = mapMaybe (`lookup` index) tokens
