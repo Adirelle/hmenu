@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE NoImplicitPrelude #-}
--- |
+
 module Data.Locale (
     Locale(Default),
     locale,
