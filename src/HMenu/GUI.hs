@@ -106,8 +106,9 @@ handleChange gui@GUI { timer = t, input = i, search = search } =
         restart Nothing  = start
         start = Just <$> timeoutAdd doSearch 500
         doSearch = do
-            t <- entryGetText i
-            search show t
+            modifyMVar_ t $ \_ -> return Nothing
+            q <- entryGetText i
+            search show q
             return False
         show = showResults gui
 
