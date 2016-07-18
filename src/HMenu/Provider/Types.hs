@@ -26,17 +26,17 @@ instance Hashable EntryProvider where
 
 fileBasedProvider :: [FilePath] -> Filter -> Hasher -> Converter -> IO EntryProvider
 fileBasedProvider dirs filter hasher converter = do
-    files <- trace "scanning files" $ scanDirs filter dirs
-    hash <- trace "hashing files" $ hasher files
-    return $ trace "returning provider" $ EntryProvider hash (entries files)
+    files <- scanDirs filter dirs
+    hash <- hasher files
+    return $ EntryProvider hash (entries files)
     where
         entries :: [FilePath] -> IO [Entry]
-        entries files = trace "converting files" $ concatMap converter files
+        entries files = concatMap converter files
 
 metaProvider :: [EntryProvider] -> EntryProvider
-metaProvider providers = trace "returning merge provider" $ EntryProvider concatHash concatEntries
+metaProvider providers = EntryProvider concatHash concatEntries
     where
         concatHash :: Hash
-        concatHash = trace "merging hashes" $ foldr (flip hashWithSalt . toHash) 0 providers
+        concatHash = foldr (flip hashWithSalt . toHash) 0 providers
         concatEntries :: IO [Entry]
-        concatEntries = trace "merging entry lists" $ concat <$> mapM toEntries providers
+        concatEntries = concat <$> mapM toEntries providers

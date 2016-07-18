@@ -1,11 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module HMenu.Provider (
-    HMenu.Provider.Types,
-    HMenu.Provider.Path,
-    HMenu.Provider.XDG
-) where
+module HMenu.Provider (module X) where
 
-import           HMenu.Provider.Path
-import           HMenu.Provider.Types
-import           HMenu.Provider.XDG
+import           HMenu.Provider.Path  as X
+import           HMenu.Provider.Types as X
+import           HMenu.Provider.XDG   as X
