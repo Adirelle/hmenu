@@ -14,11 +14,10 @@ import           XDG.Directories
 readCache :: Binary a => FilePath -> IO (Maybe a)
 readCache p = do
     r <- try (decodeFile p :: Binary a => IO a)
-    case r of
-        Right v -> return $ Just v
-        Left e -> do
-            putStrLn $ tshow p ++ ": " ++ tshow (e :: SomeException)
-            return Nothing
+    return $ either onError Just r
+    where
+        onError :: SomeException -> Maybe a
+        onError _ = Nothing
 
 writeCache :: Binary a => FilePath -> a -> IO ()
 writeCache p d = do
