@@ -19,7 +19,9 @@ pathProvider = do
     dirs <- filterM doesDirectoryExist =<< getSearchPath
     fileBasedProvider dirs isExecutable hashFilePaths createEntry
     where
-        isExecutable path = executable <$> getPermissions path
+        isExecutable path = catchAny
+            (executable <$> getPermissions path)
+            (const (return False))
 
 hashFilePaths :: [FilePath] -> IO Int
 hashFilePaths ps = return $ foldr (flip hashWithSalt) 0 ps
