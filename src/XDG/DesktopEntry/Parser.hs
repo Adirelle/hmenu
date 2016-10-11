@@ -123,13 +123,19 @@ parseValue "Keywords"        = localized manyStrings
 parseValue "StartupNotify"   = booleanValue
 parseValue "StartupWMClass"  = ascii singleString
 parseValue "URL"             = ascii singleString
-parseValue _                 = booleanValue <|> ascii singleString <|> localized singleString
+parseValue _                 = ascii singleString <|> localized singleString
 
 booleanValue :: Parser Value
 booleanValue = do
     equals
-    Boolean <$> choice [ string "true"  >> return True
-                       , string "false" >> return False ]
+    Boolean <$> choice [ asciiCI "true"  >> return True
+                       , string  "1"     >> return True
+                       , asciiCI "yes"   >> return True
+                       , asciiCI "on"    >> return True
+                       , asciiCI "false" >> return False
+                       , string  "0"     >> return False
+                       , asciiCI "no"    >> return False
+                       , asciiCI "off"   >> return False ]
 
 localized :: (Bool -> Parser TextualValue) -> Parser Value
 localized subType = do
